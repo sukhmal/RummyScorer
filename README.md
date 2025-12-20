@@ -5,10 +5,10 @@ A mobile scoring app for Indian Rummy that supports all major variants: Pool Rum
 ## Features
 
 - **Multiple Game Variants**:
-  - Pool Rummy (101/201 points)
+  - Pool Rummy (101/201/250 points, defaults to 250)
   - Points Rummy
   - Deals Rummy
-- **Player Management**: Add 2-6 players per game
+- **Player Management**: Add 2-11 players per game
 - **Score Tracking**: Easy round-by-round score entry
 - **Invalid Declaration Handling**: Automatic 80-point penalty
 - **Game History**: View complete scoreboard and round-by-round breakdown

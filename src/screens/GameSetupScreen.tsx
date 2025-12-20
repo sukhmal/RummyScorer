@@ -15,7 +15,7 @@ import { GameVariant, GameConfig, Player, PoolType } from '../types/game';
 const GameSetupScreen = ({ navigation }: any) => {
   const { createGame, resetGame } = useGame();
   const [variant, setVariant] = useState<GameVariant>('pool');
-  const [poolLimit, setPoolLimit] = useState<PoolType>(101);
+  const [poolLimit, setPoolLimit] = useState<PoolType>(250);
   const [pointValue, setPointValue] = useState<number>(1);
   const [numberOfDeals, setNumberOfDeals] = useState<number>(2);
   const [players, setPlayers] = useState<Player[]>([
@@ -24,7 +24,7 @@ const GameSetupScreen = ({ navigation }: any) => {
   ]);
 
   const addPlayer = () => {
-    if (players.length < 6) {
+    if (players.length < 11) {
       setPlayers([
         ...players,
         { id: Date.now().toString(), name: '', score: 0 },
@@ -147,6 +147,20 @@ const GameSetupScreen = ({ navigation }: any) => {
                   201
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.variantButton,
+                  poolLimit === 250 && styles.variantButtonActive,
+                ]}
+                onPress={() => setPoolLimit(250)}>
+                <Text
+                  style={[
+                    styles.variantButtonText,
+                    poolLimit === 250 && styles.variantButtonTextActive,
+                  ]}>
+                  250
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -180,7 +194,7 @@ const GameSetupScreen = ({ navigation }: any) => {
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Players ({players.length}/6)</Text>
+          <Text style={styles.sectionTitle}>Players ({players.length}/11)</Text>
           {players.map((player, index) => (
             <View key={player.id} style={styles.playerRow}>
               <TextInput
@@ -199,7 +213,7 @@ const GameSetupScreen = ({ navigation }: any) => {
               )}
             </View>
           ))}
-          {players.length < 6 && (
+          {players.length < 11 && (
             <TouchableOpacity style={styles.addButton} onPress={addPlayer}>
               <Text style={styles.addButtonText}>+ Add Player</Text>
             </TouchableOpacity>
