@@ -1,6 +1,21 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Rummy Scorer
 
-# Getting Started
+A mobile scoring app for Indian Rummy that supports all major variants: Pool Rummy, Points Rummy, and Deals Rummy.
+
+## Features
+
+- **Multiple Game Variants**:
+  - Pool Rummy (101/201 points)
+  - Points Rummy
+  - Deals Rummy
+- **Player Management**: Add 2-6 players per game
+- **Score Tracking**: Easy round-by-round score entry
+- **Invalid Declaration Handling**: Automatic 80-point penalty
+- **Game History**: View complete scoreboard and round-by-round breakdown
+- **Auto-Save**: Game state persists between sessions
+- **Dark Theme**: Eye-friendly dark UI
+
+## Getting Started
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
