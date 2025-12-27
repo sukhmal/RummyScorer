@@ -4,8 +4,8 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
   TouchableWithoutFeedback,
+  TouchableOpacity,
   Animated,
   Dimensions,
   ScrollView,
@@ -13,7 +13,7 @@ import {
 import { BlurView } from '@react-native-community/blur';
 import Icon from './Icon';
 import { useTheme } from '../context/ThemeContext';
-import { ThemeColors, ThemeName, themeNames, themes, Spacing, IconSize, BorderRadius } from '../theme';
+import { ThemeColors, ThemeName, themeNames, themes, Typography, Spacing, IconSize, BorderRadius } from '../theme';
 
 const { height: screenHeight } = Dimensions.get('window');
 const MODAL_HEIGHT = screenHeight * 0.65;
@@ -77,15 +77,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }) => {
     <Modal visible={visible} transparent animationType="none">
       <View style={styles.container}>
         {/* Backdrop */}
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} pointerEvents="none">
+          <BlurView
+            style={StyleSheet.absoluteFill}
+            blurType="dark"
+            blurAmount={10}
+            reducedTransparencyFallbackColor="black"
+          />
+        </Animated.View>
         <TouchableWithoutFeedback onPress={handleClose}>
-          <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-            <BlurView
-              style={StyleSheet.absoluteFill}
-              blurType="dark"
-              blurAmount={10}
-              reducedTransparencyFallbackColor="black"
-            />
-          </Animated.View>
+          <View style={styles.backdropTouchable} />
         </TouchableWithoutFeedback>
 
         {/* Modal Content */}
@@ -102,63 +103,44 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }) => {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Settings</Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              style={styles.closeButton}
-              accessibilityLabel="Close settings"
-              accessibilityRole="button">
-              <Icon name="xmark.circle.fill" size={IconSize.large} color={colors.secondaryLabel} weight="medium" />
-            </TouchableOpacity>
           </View>
 
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}>
-            {/* Appearance Section */}
+            {/* Theme Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Icon name="paintpalette.fill" size={IconSize.medium} color={colors.accent} weight="medium" />
-                <Text style={styles.sectionTitle}>Appearance</Text>
+                <Text style={styles.sectionTitle}>Theme</Text>
               </View>
 
-              {/* Theme Grid */}
-              <View style={styles.themeGrid}>
-                {themeOrder.map((theme) => {
-                  const themeColors = themes[theme];
-                  const isSelected = themeName === theme;
-                  return (
-                    <TouchableOpacity
-                      key={theme}
-                      style={[
-                        styles.themeCard,
-                        { backgroundColor: themeColors.cardBackground },
-                        isSelected && styles.themeCardSelected,
-                        isSelected && { borderColor: colors.accent },
-                      ]}
-                      onPress={() => handleThemeSelect(theme)}
-                      accessibilityLabel={`Select ${themeNames[theme]} theme`}
-                      accessibilityRole="button">
-                      {/* Color Swatches */}
-                      <View style={styles.swatchRow}>
-                        <View style={[styles.swatch, { backgroundColor: themeColors.background }]} />
-                        <View style={[styles.swatch, { backgroundColor: themeColors.accent }]} />
-                        <View style={[styles.swatch, { backgroundColor: themeColors.tint }]} />
-                        <View style={[styles.swatch, { backgroundColor: themeColors.gold }]} />
-                      </View>
-
-                      {/* Theme Name & Checkmark */}
-                      <View style={styles.themeInfo}>
-                        <Text style={[styles.themeName, { color: themeColors.label }]}>
-                          {themeNames[theme]}
-                        </Text>
-                        {isSelected && (
-                          <Icon name="checkmark.circle.fill" size={IconSize.medium} color={colors.success} weight="medium" />
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+              {/* Custom Color Segmented Control */}
+              <View style={styles.segmentedCard}>
+                <View style={styles.colorSegments}>
+                  {themeOrder.map((theme) => {
+                    const themeColors = themes[theme];
+                    const isSelected = themeName === theme;
+                    return (
+                      <TouchableOpacity
+                        key={theme}
+                        style={[
+                          styles.colorSegment,
+                          isSelected && [styles.colorSegmentSelected, { borderColor: colors.tint }],
+                        ]}
+                        onPress={() => handleThemeSelect(theme)}
+                        accessibilityLabel={`Select ${themeNames[theme]} theme`}
+                        accessibilityRole="button"
+                      >
+                        <View style={[styles.colorSwatch, { backgroundColor: themeColors.background }]}>
+                          <View style={[styles.colorSwatchAccent, { backgroundColor: themeColors.accent }]} />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={styles.selectedThemeName}>{themeNames[themeName]}</Text>
               </View>
             </View>
 
@@ -199,6 +181,13 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
+  backdropTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: MODAL_HEIGHT,
+  },
   modalContent: {
     height: MODAL_HEIGHT,
     backgroundColor: colors.background,
@@ -218,21 +207,15 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: 2.5,
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.separator,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...Typography.title3,
     color: colors.label,
-  },
-  closeButton: {
-    padding: Spacing.xs,
   },
   scrollView: {
     flex: 1,
@@ -248,48 +231,50 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   sectionTitle: {
-    fontSize: 16,
+    ...Typography.callout,
     fontWeight: '600',
     color: colors.label,
   },
-  themeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  themeCard: {
-    width: '47%',
-    padding: Spacing.md,
+  segmentedCard: {
+    backgroundColor: colors.cardBackground,
     borderRadius: BorderRadius.medium,
+    padding: Spacing.md,
+  },
+  colorSegments: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  colorSegment: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: BorderRadius.small,
+    padding: 3,
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  themeCardSelected: {
+  colorSegmentSelected: {
     borderWidth: 2,
   },
-  swatchRow: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    marginBottom: Spacing.sm,
+  colorSwatch: {
+    flex: 1,
+    borderRadius: BorderRadius.small - 2,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
-  swatch: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+  colorSwatchAccent: {
+    height: '35%',
+    width: '100%',
   },
-  themeInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  themeName: {
-    fontSize: 14,
+  selectedThemeName: {
+    ...Typography.subheadline,
     fontWeight: '600',
+    color: colors.label,
+    textAlign: 'center',
+    marginTop: Spacing.md,
   },
   comingSoon: {
     backgroundColor: colors.cardBackground,
@@ -298,8 +283,8 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
   },
   comingSoonText: {
+    ...Typography.subheadline,
     color: colors.tertiaryLabel,
-    fontSize: 14,
     fontStyle: 'italic',
   },
   aboutRow: {
@@ -311,12 +296,12 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: BorderRadius.medium,
   },
   aboutLabel: {
+    ...Typography.subheadline,
     color: colors.label,
-    fontSize: 14,
   },
   aboutValue: {
+    ...Typography.subheadline,
     color: colors.secondaryLabel,
-    fontSize: 14,
   },
 });
 

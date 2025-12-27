@@ -13,7 +13,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const THEME_STORAGE_KEY = 'app_theme';
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [themeName, setThemeName] = useState<ThemeName>('midnight');
+  const [themeName, setThemeName] = useState<ThemeName>('ocean');
 
   useEffect(() => {
     // Load saved theme on mount

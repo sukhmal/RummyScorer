@@ -40,22 +40,22 @@ export interface ThemeColors {
 
 // Midnight Theme (Original Dark Theme)
 const midnightColors: ThemeColors = {
-  background: '#1a1a2e',
-  cardBackground: '#16213e',
-  accent: '#0f3460',
+  background: '#0f0f1a',
+  cardBackground: '#1a1a2e',
+  accent: '#5e81ac',
 
   label: '#FFFFFF',
   labelLight: '#eeeeee',
-  secondaryLabel: 'rgba(235, 235, 245, 0.6)',
-  tertiaryLabel: 'rgba(235, 235, 245, 0.3)',
-  placeholder: '#666666',
+  secondaryLabel: 'rgba(235, 235, 245, 0.7)',
+  tertiaryLabel: 'rgba(235, 235, 245, 0.4)',
+  placeholder: '#888888',
 
-  separator: 'rgba(84, 84, 88, 0.65)',
+  separator: 'rgba(94, 129, 172, 0.4)',
 
   destructive: '#FF453A',
   success: '#30D158',
   warning: '#FFD60A',
-  tint: '#0A84FF',
+  tint: '#5e9eff',
 
   winnerBackground: '#1b5e20',
   winnerText: '#a5d6a7',

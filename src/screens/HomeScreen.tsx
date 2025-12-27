@@ -12,7 +12,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Game } from '../types/game';
 import Icon from '../components/Icon';
 import SettingsModal from '../components/SettingsModal';
-import { ThemeColors, Typography, Spacing, TapTargets, IconSize } from '../theme';
+import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
 
 const HomeScreen = ({ navigation }: any) => {
   const { currentGame, gameHistory, loadGame } = useGame();
@@ -29,8 +29,6 @@ const HomeScreen = ({ navigation }: any) => {
     return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
   };
 
@@ -51,7 +49,7 @@ const HomeScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Settings */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
         <TouchableOpacity
@@ -63,55 +61,107 @@ const HomeScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Rummy Scorer</Text>
-        <Text style={styles.subtitle}>Track your game scores</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
 
-        {currentGame && !currentGame.winner ? (
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.logoContainer}>
+            <Icon name="suit.spade.fill" size={48} color={colors.accent} weight="medium" />
+          </View>
+          <Text style={styles.title}>Rummy Scorer</Text>
+          <Text style={styles.subtitle}>Track scores like a pro</Text>
+        </View>
+
+        {/* Action Cards */}
+        <View style={styles.actionsSection}>
+          {currentGame && !currentGame.winner && (
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Game')}
+              accessibilityLabel="Continue current game"
+              accessibilityRole="button">
+              <View style={[styles.actionIconContainer, { backgroundColor: colors.success + '20' }]}>
+                <Icon name="play.fill" size={IconSize.large} color={colors.success} weight="medium" />
+              </View>
+              <View style={styles.actionContent}>
+                <Text style={styles.actionTitle}>Continue Game</Text>
+                <Text style={styles.actionSubtitle}>
+                  Round {currentGame.rounds.length + 1} • {currentGame.players.filter(p => !p.isEliminated).length} players
+                </Text>
+              </View>
+              <Icon name="chevron.right" size={IconSize.medium} color={colors.tertiaryLabel} weight="semibold" />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={() => navigation.navigate('Game')}>
-            <Text style={styles.buttonText}>Continue Game</Text>
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('GameSetup')}
+            accessibilityLabel="Start a new game"
+            accessibilityRole="button">
+            <View style={[styles.actionIconContainer, { backgroundColor: colors.tint + '20' }]}>
+              <Icon name="plus" size={IconSize.large} color={colors.tint} weight="bold" />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>New Game</Text>
+              <Text style={styles.actionSubtitle}>Pool, Points, or Deals</Text>
+            </View>
+            <Icon name="chevron.right" size={IconSize.medium} color={colors.tertiaryLabel} weight="semibold" />
           </TouchableOpacity>
-        ) : null}
+        </View>
 
-        <TouchableOpacity
-          style={[styles.button, styles.primaryButton]}
-          onPress={() => navigation.navigate('GameSetup')}>
-          <Text style={styles.buttonText}>New Game</Text>
-        </TouchableOpacity>
-
+        {/* Past Games Section */}
         {gameHistory.length > 0 && (
           <View style={styles.historySection}>
-            <View style={styles.historyTitleRow}>
-              <Icon name="clock.arrow.circlepath" size={IconSize.medium} color={colors.secondaryLabel} weight="medium" />
-              <Text style={styles.historyTitle}>Past Games</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>RECENT GAMES</Text>
+              <View style={styles.historyBadge}>
+                <Text style={styles.historyBadgeText}>{gameHistory.length}</Text>
+              </View>
             </View>
-            {gameHistory.map(game => {
-              const summary = getGameSummary(game);
-              return (
-                <TouchableOpacity
-                  key={game.id}
-                  style={styles.historyCard}
-                  onPress={() => navigation.navigate('History', { gameId: game.id })}>
-                  <View style={styles.historyCardHeader}>
-                    <Text style={styles.historyVariant}>
-                      {game.name || summary.variant}
-                    </Text>
-                    <Text style={styles.historyDate}>
-                      {formatDate(game.completedAt || game.startedAt)}
-                    </Text>
-                  </View>
-                  {game.name && (
-                    <Text style={styles.historyVariantSmall}>{summary.variant}</Text>
-                  )}
-                  <Text style={styles.historyWinner}>Winner: {summary.winner}</Text>
-                  <Text style={styles.historyDetails}>
-                    {summary.players} players • {summary.rounds} rounds
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+
+            <View style={styles.historyList}>
+              {gameHistory.map((game, index) => {
+                const summary = getGameSummary(game);
+                const isLast = index === gameHistory.length - 1;
+                return (
+                  <TouchableOpacity
+                    key={game.id}
+                    style={[styles.historyItem, !isLast && styles.historyItemBorder]}
+                    onPress={() => navigation.navigate('History', { gameId: game.id })}
+                    accessibilityLabel={`View ${game.name || summary.variant} game`}
+                    accessibilityRole="button">
+                    <View style={styles.historyItemLeft}>
+                      <View style={styles.historyIconContainer}>
+                        <Icon name="trophy.fill" size={IconSize.medium} color={colors.gold} weight="medium" />
+                      </View>
+                      <View style={styles.historyItemContent}>
+                        <Text style={styles.historyItemTitle} numberOfLines={1}>
+                          {game.name || summary.variant}
+                        </Text>
+                        <Text style={styles.historyItemSubtitle}>
+                          {summary.winner} won • {summary.rounds} rounds
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.historyItemRight}>
+                      <Text style={styles.historyDate}>{formatDate(game.completedAt || game.startedAt)}</Text>
+                      <Icon name="chevron.right" size={IconSize.small} color={colors.tertiaryLabel} weight="semibold" />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Empty State */}
+        {gameHistory.length === 0 && (
+          <View style={styles.emptyState}>
+            <Icon name="gamecontroller.fill" size={40} color={colors.tertiaryLabel} weight="medium" />
+            <Text style={styles.emptyStateText}>No games played yet</Text>
+            <Text style={styles.emptyStateSubtext}>Start a new game to begin tracking!</Text>
           </View>
         )}
       </ScrollView>
@@ -147,101 +197,165 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   content: {
     flexGrow: 1,
+    padding: Spacing.lg,
+  },
+
+  // Hero Section
+  heroSection: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    marginBottom: Spacing.lg,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: colors.cardBackground,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: colors.separator,
   },
   title: {
     ...Typography.largeTitle,
-    fontSize: 42,
     color: colors.label,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    ...Typography.headline,
+    ...Typography.subheadline,
     color: colors.secondaryLabel,
-    marginBottom: Spacing.xxl,
   },
-  button: {
-    width: '80%',
-    padding: Spacing.lg,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginVertical: Spacing.sm,
-    minHeight: TapTargets.comfortable,
-    justifyContent: 'center',
+
+  // Action Cards
+  actionsSection: {
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
   },
-  primaryButton: {
-    backgroundColor: colors.cardBackground,
-    borderWidth: 2,
-    borderColor: colors.accent,
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: colors.accent,
-  },
-  buttonText: {
-    color: colors.labelLight,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  secondaryButtonText: {
-    color: colors.accent,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  historySection: {
-    width: '100%',
-    marginTop: Spacing.xl,
-  },
-  historyTitleRow: {
+  actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    backgroundColor: colors.cardBackground,
+    borderRadius: BorderRadius.large,
+    padding: Spacing.md,
+    gap: Spacing.md,
   },
-  historyTitle: {
-    ...Typography.title3,
+  actionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.medium,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    ...Typography.headline,
+    color: colors.label,
+    marginBottom: 2,
+  },
+  actionSubtitle: {
+    ...Typography.caption1,
+    color: colors.secondaryLabel,
+  },
+
+  // History Section
+  historySection: {
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.secondaryLabel,
+    letterSpacing: 0.5,
+  },
+  historyBadge: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  historyBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.label,
   },
-  historyCard: {
+  historyList: {
     backgroundColor: colors.cardBackground,
-    borderRadius: 12,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.accent,
+    borderRadius: BorderRadius.large,
+    overflow: 'hidden',
   },
-  historyCardHeader: {
+  historyItem: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
+    padding: Spacing.md,
   },
-  historyVariant: {
-    color: colors.success,
-    fontSize: 14,
+  historyItemBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.separator,
+  },
+  historyItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: Spacing.md,
+  },
+  historyIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.gold + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historyItemContent: {
+    flex: 1,
+  },
+  historyItemTitle: {
+    ...Typography.body,
     fontWeight: '600',
+    color: colors.label,
+    marginBottom: 2,
+  },
+  historyItemSubtitle: {
+    ...Typography.caption1,
+    color: colors.secondaryLabel,
+  },
+  historyItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   historyDate: {
-    color: colors.secondaryLabel,
-    fontSize: 12,
+    ...Typography.caption1,
+    color: colors.tertiaryLabel,
   },
-  historyWinner: {
-    color: colors.labelLight,
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
+
+  // Empty State
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xxl,
   },
-  historyDetails: {
+  emptyStateText: {
+    ...Typography.headline,
     color: colors.secondaryLabel,
-    fontSize: 12,
+    marginTop: Spacing.md,
   },
-  historyVariantSmall: {
-    color: colors.secondaryLabel,
-    fontSize: 12,
-    marginBottom: 4,
+  emptyStateSubtext: {
+    ...Typography.caption1,
+    color: colors.tertiaryLabel,
+    marginTop: Spacing.xs,
   },
 });
 

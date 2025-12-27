@@ -1,12 +1,12 @@
 import React from 'react';
-import { StatusBar, TouchableOpacity, StyleSheet } from 'react-native';
+import { StatusBar, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GameProvider } from './src/context/GameContext';
+import { GameProvider, useGame } from './src/context/GameContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import Icon from './src/components/Icon';
-import { TapTargets, IconSize } from './src/theme';
+import { TapTargets, IconSize, Spacing, BorderRadius, Typography } from './src/theme';
 
 import HomeScreen from './src/screens/HomeScreen';
 import GameSetupScreen from './src/screens/GameSetupScreen';
@@ -30,12 +30,64 @@ const HomeButton = () => {
   );
 };
 
+const ScoresButton = () => {
+  const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.navigate('History')}
+      style={[styles.headerBadge, { backgroundColor: colors.gold + '20' }]}
+      accessibilityLabel="View scoreboard"
+      accessibilityRole="button"
+    >
+      <Icon name="chart.bar.fill" size={IconSize.small} color={colors.gold} weight="medium" />
+      <Text style={[styles.headerBadgeText, { color: colors.gold }]}>Scores</Text>
+    </TouchableOpacity>
+  );
+};
+
+const PlayButton = () => {
+  const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const { currentGame } = useGame();
+
+  // Only show if there's an active game with no winner
+  if (!currentGame || currentGame.winner) {
+    return null;
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.goBack()}
+      style={[styles.headerBadge, { backgroundColor: colors.gold + '20' }]}
+      accessibilityLabel="Continue game"
+      accessibilityRole="button"
+    >
+      <Icon name="play.fill" size={IconSize.small} color={colors.gold} weight="medium" />
+      <Text style={[styles.headerBadgeText, { color: colors.gold }]}>Play</Text>
+    </TouchableOpacity>
+  );
+};
+
 const styles = StyleSheet.create({
   homeButton: {
     width: TapTargets.minimum,
     height: TapTargets.minimum,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.large,
+    gap: Spacing.xs,
+    marginRight: Spacing.sm,
+  },
+  headerBadgeText: {
+    ...Typography.footnote,
+    fontWeight: '600',
   },
 });
 
@@ -79,6 +131,7 @@ const AppNavigator = () => {
           options={{
             title: 'Game',
             headerLeft: HomeButton,
+            headerRight: ScoresButton,
           }}
         />
         <Stack.Screen
@@ -87,6 +140,7 @@ const AppNavigator = () => {
           options={{
             title: 'Scoreboard',
             headerLeft: HomeButton,
+            headerRight: PlayButton,
           }}
         />
       </Stack.Navigator>
