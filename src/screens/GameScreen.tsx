@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,14 +12,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
+import { useTheme } from '../context/ThemeContext';
 import { ScoreInput } from '../types/game';
 import FireworksModal from '../components/FireworksModal';
+import Icon from '../components/Icon';
+import { ThemeColors, Spacing, TapTargets, IconSize } from '../theme';
 
 // States: 0 = default (25 drop), 1 = winner (0), 2 = custom score, 3 = invalid declaration (80)
 type PlayerState = 0 | 1 | 2 | 3;
 
 const GameScreen = ({ navigation }: any) => {
   const { currentGame, addRound } = useGame();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [playerStates, setPlayerStates] = useState<{ [playerId: string]: PlayerState }>({});
   const [customScores, setCustomScores] = useState<{ [playerId: string]: number }>({});
   const [showFireworks, setShowFireworks] = useState(false);
@@ -240,6 +245,12 @@ const GameScreen = ({ navigation }: any) => {
                   </Text>
                 </View>
                 <View style={styles.stateColumn}>
+                  {state === 1 && (
+                    <Icon name="checkmark.circle.fill" size={IconSize.small} color={colors.success} weight="medium" />
+                  )}
+                  {state === 3 && (
+                    <Icon name="exclamationmark.triangle.fill" size={IconSize.small} color={colors.destructive} weight="medium" />
+                  )}
                   <Text style={[
                     styles.stateText,
                     state === 1 && styles.stateTextWinner,
@@ -261,7 +272,7 @@ const GameScreen = ({ navigation }: any) => {
                       onBlur={() => enforceMinScore(player.id)}
                       keyboardType="numeric"
                       placeholder="2"
-                      placeholderTextColor="#666"
+                      placeholderTextColor={colors.placeholder}
                     />
                   ) : (
                     <Text style={styles.pointsDisplay}>{getPlayerScore(player.id)}</Text>
@@ -293,33 +304,33 @@ const GameScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: colors.background,
   },
   content: {
-    padding: 20,
+    padding: Spacing.lg,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: Spacing.xl,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#eee',
+    color: colors.labelLight,
   },
   subtitle: {
     fontSize: 16,
-    color: '#aaa',
+    color: colors.secondaryLabel,
     marginTop: 5,
   },
   scoreTable: {
-    marginBottom: 30,
+    marginBottom: Spacing.xl,
   },
   tableHint: {
-    color: '#666',
+    color: colors.placeholder,
     fontSize: 12,
     textAlign: 'center',
     marginBottom: 10,
@@ -327,12 +338,12 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     borderBottomWidth: 2,
-    borderBottomColor: '#0f3460',
+    borderBottomColor: colors.accent,
     paddingBottom: 10,
     marginBottom: 10,
   },
   headerText: {
-    color: '#aaa',
+    color: colors.secondaryLabel,
     fontSize: 14,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -342,8 +353,10 @@ const styles = StyleSheet.create({
   },
   stateColumn: {
     flex: 1.2,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.xs,
   },
   scoreColumn: {
     flex: 0.8,
@@ -359,86 +372,86 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#16213e',
+    borderBottomColor: colors.cardBackground,
     borderRadius: 8,
   },
   playerRowWinner: {
-    backgroundColor: '#1b5e20',
+    backgroundColor: colors.winnerBackground,
   },
   playerRowInvalid: {
-    backgroundColor: '#b71c1c',
+    backgroundColor: colors.invalidBackground,
   },
   playerName: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 16,
     fontWeight: '500',
   },
   playerNameWinner: {
-    color: '#a5d6a7',
+    color: colors.winnerText,
     fontWeight: 'bold',
   },
   playerNameInvalid: {
-    color: '#ffcdd2',
+    color: colors.invalidText,
     fontWeight: 'bold',
   },
   stateText: {
-    color: '#888',
+    color: colors.secondaryLabel,
     fontSize: 12,
     fontWeight: '600',
   },
   stateTextWinner: {
-    color: '#a5d6a7',
+    color: colors.winnerText,
   },
   stateTextInvalid: {
-    color: '#ffcdd2',
+    color: colors.invalidText,
   },
   pointsDisplay: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 16,
     fontWeight: 'bold',
   },
   totalScore: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
   },
   scoreInput: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
     borderRadius: 8,
     padding: 8,
     width: 60,
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 16,
     textAlign: 'center',
   },
   submitButton: {
-    backgroundColor: '#16213e',
-    borderWidth: 2,
-    borderColor: '#0f3460',
-    padding: 18,
+    backgroundColor: colors.tint,
+    padding: Spacing.lg,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
+    minHeight: TapTargets.comfortable,
+    justifyContent: 'center',
   },
   submitButtonText: {
-    color: '#eee',
+    color: colors.label,
     fontSize: 18,
     fontWeight: '600',
   },
   viewHistoryButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
     padding: 14,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
   },
   viewHistoryButtonText: {
-    color: '#0f3460',
+    color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
   },

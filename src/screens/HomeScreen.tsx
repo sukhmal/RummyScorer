@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
+import { useTheme } from '../context/ThemeContext';
 import { Game } from '../types/game';
+import Icon from '../components/Icon';
+import { ThemeColors, Typography, Spacing, TapTargets, IconSize, themeNames, ThemeName } from '../theme';
 
 const HomeScreen = ({ navigation }: any) => {
   const { currentGame, gameHistory, loadGame } = useGame();
+  const { colors, themeName, setTheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     loadGame();
@@ -42,6 +47,8 @@ const HomeScreen = ({ navigation }: any) => {
     };
   };
 
+  const themeOptions: ThemeName[] = ['midnight', 'light', 'ocean', 'forest', 'royal'];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -62,9 +69,41 @@ const HomeScreen = ({ navigation }: any) => {
           <Text style={styles.buttonText}>New Game</Text>
         </TouchableOpacity>
 
+        {/* Theme Picker */}
+        <View style={styles.themeSection}>
+          <View style={styles.themeTitleRow}>
+            <Icon name="paintpalette.fill" size={IconSize.medium} color={colors.secondaryLabel} weight="medium" />
+            <Text style={styles.themeTitle}>Theme</Text>
+          </View>
+          <View style={styles.themeOptions}>
+            {themeOptions.map((theme) => (
+              <TouchableOpacity
+                key={theme}
+                style={[
+                  styles.themeButton,
+                  themeName === theme && styles.themeButtonActive,
+                ]}
+                onPress={() => setTheme(theme)}
+                accessibilityLabel={`Select ${themeNames[theme]} theme`}
+                accessibilityRole="button">
+                <Text
+                  style={[
+                    styles.themeButtonText,
+                    themeName === theme && styles.themeButtonTextActive,
+                  ]}>
+                  {themeNames[theme]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {gameHistory.length > 0 && (
           <View style={styles.historySection}>
-            <Text style={styles.historyTitle}>Past Games</Text>
+            <View style={styles.historyTitleRow}>
+              <Icon name="clock.arrow.circlepath" size={IconSize.medium} color={colors.secondaryLabel} weight="medium" />
+              <Text style={styles.historyTitle}>Past Games</Text>
+            </View>
             {gameHistory.map(game => {
               const summary = getGameSummary(game);
               return (
@@ -97,100 +136,146 @@ const HomeScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: colors.background,
   },
   content: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.lg,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#eee',
-    marginBottom: 10,
+    ...Typography.largeTitle,
+    fontSize: 42,
+    color: colors.label,
+    marginBottom: Spacing.sm,
   },
   subtitle: {
-    fontSize: 18,
-    color: '#aaa',
-    marginBottom: 60,
+    ...Typography.headline,
+    color: colors.secondaryLabel,
+    marginBottom: Spacing.xxl,
   },
   button: {
     width: '80%',
-    padding: 18,
+    padding: Spacing.lg,
     borderRadius: 12,
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: Spacing.sm,
+    minHeight: TapTargets.comfortable,
+    justifyContent: 'center',
   },
   primaryButton: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderWidth: 2,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
   },
   secondaryButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
   },
   buttonText: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 18,
     fontWeight: '600',
   },
   secondaryButtonText: {
-    color: '#0f3460',
+    color: colors.accent,
     fontSize: 18,
     fontWeight: '600',
   },
+  themeSection: {
+    width: '100%',
+    marginTop: Spacing.xl,
+  },
+  themeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  themeTitle: {
+    ...Typography.title3,
+    color: colors.label,
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  themeButton: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    backgroundColor: 'transparent',
+  },
+  themeButtonActive: {
+    backgroundColor: colors.accent,
+  },
+  themeButtonText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  themeButtonTextActive: {
+    color: colors.labelLight,
+  },
   historySection: {
     width: '100%',
-    marginTop: 40,
+    marginTop: Spacing.xl,
+  },
+  historyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   historyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#eee',
-    marginBottom: 15,
-    textAlign: 'center',
+    ...Typography.title3,
+    color: colors.label,
   },
   historyCard: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
   },
   historyCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   historyVariant: {
-    color: '#4CAF50',
+    color: colors.success,
     fontSize: 14,
     fontWeight: '600',
   },
   historyDate: {
-    color: '#888',
+    color: colors.secondaryLabel,
     fontSize: 12,
   },
   historyWinner: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 4,
   },
   historyDetails: {
-    color: '#aaa',
+    color: colors.secondaryLabel,
     fontSize: 12,
   },
   historyVariantSmall: {
-    color: '#888',
+    color: colors.secondaryLabel,
     fontSize: 12,
     marginBottom: 4,
   },

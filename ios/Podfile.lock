@@ -1981,6 +1981,8 @@ PODS:
     - Yoga
   - react-native-segmented-control (2.5.7):
     - React-Core
+  - react-native-sfsymbols (1.2.2):
+    - React
   - React-NativeModulesApple (0.83.1):
     - boost
     - DoubleConversion
@@ -2732,6 +2734,7 @@ DEPENDENCIES:
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-segmented-control (from `../node_modules/@react-native-segmented-control/segmented-control`)"
+  - react-native-sfsymbols (from `../node_modules/react-native-sfsymbols`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-networking (from `../node_modules/react-native/ReactCommon/react/networking`)
   - React-oscompat (from `../node_modules/react-native/ReactCommon/oscompat`)
@@ -2867,6 +2870,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-segmented-control:
     :path: "../node_modules/@react-native-segmented-control/segmented-control"
+  react-native-sfsymbols:
+    :path: "../node_modules/react-native-sfsymbols"
   React-NativeModulesApple:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios"
   React-networking:
@@ -2988,6 +2993,7 @@ SPEC CHECKSUMS:
   React-microtasksnativemodule: dd4d33b251b57e5027c572c6d0b45cbfbcfaa386
   react-native-safe-area-context: 54d812805f3c4e08a4580ad086cbde1d8780c2e4
   react-native-segmented-control: 44d14c6899ee12de3384517f4fa1cf4a66ae105c
+  react-native-sfsymbols: ca90d8bb7d6ad06523bf833f2becae22b97fb056
   React-NativeModulesApple: 7f2f2fed3f6c858889eb61d09941be965d52df58
   React-networking: 43e5e6773ac2ca2a93261a1388fed269c9fce092
   React-oscompat: 80166b66da22e7af7fad94474e9997bd52d4c8c6

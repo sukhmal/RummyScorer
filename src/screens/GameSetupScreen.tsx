@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useGame } from '../context/GameContext';
+import { useTheme } from '../context/ThemeContext';
 import { GameVariant, GameConfig, Player, PoolType } from '../types/game';
+import Icon from '../components/Icon';
+import { ThemeColors, Spacing, TapTargets, IconSize } from '../theme';
 
 const PRESET_POOL_LIMITS = [101, 201, 250] as const;
 
 const GameSetupScreen = ({ navigation }: any) => {
   const { createGame, resetGame } = useGame();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [gameName, setGameName] = useState<string>('');
   const [variant, setVariant] = useState<GameVariant>('pool');
   const [poolLimit, setPoolLimit] = useState<PoolType>(250);
@@ -80,7 +85,7 @@ const GameSetupScreen = ({ navigation }: any) => {
             value={gameName}
             onChangeText={setGameName}
             placeholder="e.g., Friday Night Rummy"
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.placeholder}
           />
         </View>
 
@@ -153,7 +158,7 @@ const GameSetupScreen = ({ navigation }: any) => {
                 }
               }}
               style={styles.segmentedControl}
-              tintColor="#0f3460"
+              tintColor={colors.accent}
               fontStyle={styles.segmentedControlFont}
               activeFontStyle={styles.segmentedControlActiveFont}
             />
@@ -170,7 +175,7 @@ const GameSetupScreen = ({ navigation }: any) => {
                 }}
                 keyboardType="numeric"
                 placeholder="Enter custom pool limit"
-                placeholderTextColor="#666"
+                placeholderTextColor={colors.placeholder}
                 autoFocus
               />
             )}
@@ -186,7 +191,7 @@ const GameSetupScreen = ({ navigation }: any) => {
               onChangeText={text => setPointValue(parseInt(text, 10) || 1)}
               keyboardType="numeric"
               placeholder="Enter point value"
-              placeholderTextColor="#666"
+              placeholderTextColor={colors.placeholder}
             />
           </View>
         )}
@@ -200,7 +205,7 @@ const GameSetupScreen = ({ navigation }: any) => {
               onChangeText={text => setNumberOfDeals(parseInt(text, 10) || 2)}
               keyboardType="numeric"
               placeholder="Enter number of deals"
-              placeholderTextColor="#666"
+              placeholderTextColor={colors.placeholder}
             />
           </View>
         )}
@@ -214,20 +219,29 @@ const GameSetupScreen = ({ navigation }: any) => {
                 value={player.name}
                 onChangeText={text => updatePlayerName(player.id, text)}
                 placeholder={`Player ${index + 1} name`}
-                placeholderTextColor="#666"
+                placeholderTextColor={colors.placeholder}
               />
               {players.length > 2 && (
                 <TouchableOpacity
                   style={styles.removeButton}
-                  onPress={() => removePlayer(player.id)}>
-                  <Text style={styles.removeButtonText}>✕</Text>
+                  onPress={() => removePlayer(player.id)}
+                  accessibilityLabel={`Remove ${player.name || 'player'}`}
+                  accessibilityRole="button"
+                >
+                  <Icon name="xmark.circle.fill" size={IconSize.medium} color={colors.accent} weight="medium" />
                 </TouchableOpacity>
               )}
             </View>
           ))}
           {players.length < 11 && (
-            <TouchableOpacity style={styles.addButton} onPress={addPlayer}>
-              <Text style={styles.addButtonText}>+ Add Player</Text>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={addPlayer}
+              accessibilityLabel="Add another player"
+              accessibilityRole="button"
+            >
+              <Icon name="plus.circle.fill" size={IconSize.medium} color={colors.accent} weight="medium" />
+              <Text style={styles.addButtonText}>Add Player</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -240,128 +254,129 @@ const GameSetupScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: colors.background,
   },
   content: {
-    padding: 20,
+    padding: Spacing.lg,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#eee',
-    marginBottom: 30,
+    color: colors.labelLight,
+    marginBottom: Spacing.xl,
     textAlign: 'center',
   },
   section: {
-    marginBottom: 30,
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#eee',
-    marginBottom: 12,
+    color: colors.labelLight,
+    marginBottom: Spacing.md,
   },
   variantButtons: {
     flexDirection: 'row',
-    gap: 10,
+    gap: Spacing.sm,
   },
   variantButton: {
     flex: 1,
-    padding: 12,
+    padding: Spacing.md,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
     alignItems: 'center',
   },
   variantButtonActive: {
-    backgroundColor: '#0f3460',
+    backgroundColor: colors.accent,
   },
   variantButtonText: {
-    color: '#0f3460',
+    color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
   },
   variantButtonTextActive: {
-    color: '#eee',
+    color: colors.labelLight,
   },
   input: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
     borderRadius: 8,
-    padding: 12,
-    color: '#eee',
+    padding: Spacing.md,
+    color: colors.labelLight,
     fontSize: 16,
   },
   customPoolInput: {
-    marginTop: 12,
+    marginTop: Spacing.md,
   },
   segmentedControl: {
     height: 40,
   },
   segmentedControlFont: {
-    color: '#aaa',
+    color: colors.secondaryLabel,
   },
   segmentedControlActiveFont: {
-    color: '#fff',
+    color: colors.label,
   },
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    gap: 10,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
   playerInput: {
     flex: 1,
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
     borderRadius: 8,
-    padding: 12,
-    color: '#eee',
+    padding: Spacing.md,
+    color: colors.labelLight,
     fontSize: 16,
   },
   removeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#d32f2f',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  removeButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
   addButton: {
-    padding: 12,
+    flexDirection: 'row',
+    padding: Spacing.md,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#0f3460',
+    borderColor: colors.accent,
     borderStyle: 'dashed',
     alignItems: 'center',
-    marginTop: 10,
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    minHeight: TapTargets.minimum,
   },
   addButtonText: {
-    color: '#0f3460',
+    color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
   },
   startButton: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderWidth: 2,
-    borderColor: '#0f3460',
-    padding: 18,
+    borderColor: colors.accent,
+    padding: Spacing.lg,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: Spacing.lg,
   },
   startButtonText: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 18,
     fontWeight: '600',
   },

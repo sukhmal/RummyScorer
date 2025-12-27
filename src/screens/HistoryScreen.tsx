@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
 import { useGame } from '../context/GameContext';
+import { useTheme } from '../context/ThemeContext';
+import Icon from '../components/Icon';
+import { ThemeColors, Spacing, IconSize } from '../theme';
 
 const screenWidth = Dimensions.get('window').width;
 
 const HistoryScreen = ({ navigation, route }: any) => {
   const { currentGame, gameHistory, resetGame } = useGame();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Check if viewing a past game from history
   const gameId = route?.params?.gameId;
@@ -66,8 +71,6 @@ const HistoryScreen = ({ navigation, route }: any) => {
   const getChartData = () => {
     if (displayGame.rounds.length === 0) return null;
 
-    const playerColors = ['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548', '#607D8B', '#FF5722', '#3F51B5'];
-
     const datasets = displayGame.players.map((player, index) => {
       let cumulative = 0;
       const data = [0]; // Start at 0
@@ -77,7 +80,7 @@ const HistoryScreen = ({ navigation, route }: any) => {
       });
       return {
         data,
-        color: () => playerColors[index % playerColors.length],
+        color: () => colors.chartColors[index % colors.chartColors.length],
         strokeWidth: 2,
       };
     });
@@ -100,6 +103,7 @@ const HistoryScreen = ({ navigation, route }: any) => {
 
         {winner && (
           <View style={styles.winnerBanner}>
+            <Icon name="trophy.fill" size={IconSize.xlarge} color={colors.gold} weight="medium" />
             <Text style={styles.winnerTitle}>Winner!</Text>
             <Text style={styles.winnerName}>{winner.name}</Text>
           </View>
@@ -121,19 +125,22 @@ const HistoryScreen = ({ navigation, route }: any) => {
 
         {chartData && (
           <View style={styles.chartSection}>
-            <Text style={styles.sectionTitle}>Score Progression</Text>
+            <View style={styles.sectionHeader}>
+              <Icon name="chart.line.uptrend.xyaxis" size={IconSize.medium} color={colors.secondaryLabel} weight="medium" />
+              <Text style={styles.sectionTitle}>Score Progression</Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <LineChart
                 data={chartData}
                 width={Math.max(screenWidth - 40, displayGame.rounds.length * 50 + 80)}
                 height={220}
                 chartConfig={{
-                  backgroundColor: '#16213e',
-                  backgroundGradientFrom: '#16213e',
-                  backgroundGradientTo: '#16213e',
+                  backgroundColor: colors.cardBackground,
+                  backgroundGradientFrom: colors.cardBackground,
+                  backgroundGradientTo: colors.cardBackground,
                   decimalPlaces: 0,
                   color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(170, 170, 170, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(235, 235, 245, ${opacity * 0.6})`,
                   style: {
                     borderRadius: 12,
                   },
@@ -151,10 +158,9 @@ const HistoryScreen = ({ navigation, route }: any) => {
             </ScrollView>
             <View style={styles.legendContainer}>
               {displayGame.players.map((player, index) => {
-                const playerColors = ['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548', '#607D8B', '#FF5722', '#3F51B5'];
                 return (
                   <View key={player.id} style={styles.legendItem}>
-                    <View style={[styles.legendColor, { backgroundColor: playerColors[index % playerColors.length] }]} />
+                    <View style={[styles.legendColor, { backgroundColor: colors.chartColors[index % colors.chartColors.length] }]} />
                     <Text style={styles.legendText}>{player.name}</Text>
                   </View>
                 );
@@ -207,7 +213,10 @@ const HistoryScreen = ({ navigation, route }: any) => {
 
         {displayGame.rounds.length > 0 && (
           <View style={styles.roundsSection}>
-            <Text style={styles.sectionTitle}>Round History</Text>
+            <View style={styles.sectionHeader}>
+              <Icon name="clock.arrow.circlepath" size={IconSize.medium} color={colors.secondaryLabel} weight="medium" />
+              <Text style={styles.sectionTitle}>Round History</Text>
+            </View>
             {[...displayGame.rounds].reverse().map((round, index) => {
               const roundNumber = displayGame.rounds.length - index;
               const roundWinner = round.winner
@@ -271,60 +280,66 @@ const HistoryScreen = ({ navigation, route }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: colors.background,
   },
   content: {
-    padding: 20,
+    padding: Spacing.lg,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#eee',
+    color: colors.labelLight,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
   },
   winnerBanner: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderWidth: 3,
-    borderColor: '#ffd700',
+    borderColor: colors.gold,
     borderRadius: 12,
-    padding: 20,
+    padding: Spacing.lg,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
   },
   winnerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffd700',
-    marginBottom: 10,
+    color: colors.gold,
+    marginBottom: Spacing.sm,
   },
   winnerName: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#eee',
+    color: colors.labelLight,
   },
   gameInfo: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
-    padding: 15,
-    marginBottom: 20,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   gameNameText: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 5,
   },
   gameInfoText: {
-    color: '#aaa',
+    color: colors.secondaryLabel,
     fontSize: 14,
     marginVertical: 3,
   },
   chartSection: {
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   chart: {
     borderRadius: 12,
@@ -333,8 +348,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginTop: 10,
-    gap: 10,
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
   },
   legendItem: {
     flexDirection: 'row',
@@ -347,21 +362,21 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   legendText: {
-    color: '#aaa',
+    color: colors.secondaryLabel,
     fontSize: 12,
   },
   leaderboard: {
-    marginBottom: 30,
+    marginBottom: Spacing.xl,
   },
   leaderboardHeader: {
     flexDirection: 'row',
     borderBottomWidth: 2,
-    borderBottomColor: '#0f3460',
-    paddingBottom: 10,
-    marginBottom: 10,
+    borderBottomColor: colors.accent,
+    paddingBottom: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   headerText: {
-    color: '#aaa',
+    color: colors.secondaryLabel,
     fontSize: 14,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -383,31 +398,31 @@ const styles = StyleSheet.create({
   },
   playerRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#16213e',
+    borderBottomColor: colors.cardBackground,
     alignItems: 'center',
   },
   eliminatedRow: {
     opacity: 0.5,
   },
   rankText: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 16,
     fontWeight: 'bold',
   },
   playerName: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 16,
     fontWeight: '500',
   },
   scoreText: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 18,
     fontWeight: 'bold',
   },
   winsText: {
-    color: '#0f3460',
+    color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -415,37 +430,36 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   roundsSection: {
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#eee',
-    marginBottom: 15,
+    color: colors.labelLight,
   },
   roundCard: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
   roundHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingBottom: 10,
+    marginBottom: Spacing.sm,
+    paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#0f3460',
+    borderBottomColor: colors.accent,
   },
   roundTitle: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 16,
     fontWeight: 'bold',
   },
   roundWinner: {
-    color: '#0f3460',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -458,53 +472,53 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   roundPlayerName: {
-    color: '#aaa',
+    color: colors.secondaryLabel,
     fontSize: 14,
   },
   roundPlayerScore: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 14,
     fontWeight: '600',
   },
   continueButton: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderWidth: 2,
-    borderColor: '#0f3460',
-    padding: 18,
+    borderColor: colors.accent,
+    padding: Spacing.lg,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: Spacing.sm,
   },
   continueButtonText: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 18,
     fontWeight: '600',
   },
   newGameButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#0f3460',
-    padding: 14,
+    borderColor: colors.accent,
+    padding: Spacing.md,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: Spacing.sm,
   },
   newGameButtonText: {
-    color: '#0f3460',
+    color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
   },
   backButton: {
-    backgroundColor: '#16213e',
+    backgroundColor: colors.cardBackground,
     borderWidth: 2,
-    borderColor: '#0f3460',
-    padding: 18,
+    borderColor: colors.accent,
+    padding: Spacing.lg,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: Spacing.sm,
   },
   backButtonText: {
-    color: '#eee',
+    color: colors.labelLight,
     fontSize: 18,
     fontWeight: '600',
   },
