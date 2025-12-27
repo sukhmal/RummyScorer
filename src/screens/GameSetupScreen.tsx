@@ -9,14 +9,19 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useGame } from '../context/GameContext';
 import { GameVariant, GameConfig, Player, PoolType } from '../types/game';
+
+const PRESET_POOL_LIMITS = [101, 201, 250] as const;
 
 const GameSetupScreen = ({ navigation }: any) => {
   const { createGame, resetGame } = useGame();
   const [gameName, setGameName] = useState<string>('');
   const [variant, setVariant] = useState<GameVariant>('pool');
   const [poolLimit, setPoolLimit] = useState<PoolType>(250);
+  const [isCustomPoolLimit, setIsCustomPoolLimit] = useState(false);
+  const [customPoolLimitText, setCustomPoolLimitText] = useState('');
   const [pointValue, setPointValue] = useState<number>(1);
   const [numberOfDeals, setNumberOfDeals] = useState<number>(2);
   const [players, setPlayers] = useState<Player[]>([
@@ -130,50 +135,45 @@ const GameSetupScreen = ({ navigation }: any) => {
         {variant === 'pool' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Pool Limit</Text>
-            <View style={styles.variantButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.variantButton,
-                  poolLimit === 101 && styles.variantButtonActive,
-                ]}
-                onPress={() => setPoolLimit(101)}>
-                <Text
-                  style={[
-                    styles.variantButtonText,
-                    poolLimit === 101 && styles.variantButtonTextActive,
-                  ]}>
-                  101
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.variantButton,
-                  poolLimit === 201 && styles.variantButtonActive,
-                ]}
-                onPress={() => setPoolLimit(201)}>
-                <Text
-                  style={[
-                    styles.variantButtonText,
-                    poolLimit === 201 && styles.variantButtonTextActive,
-                  ]}>
-                  201
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.variantButton,
-                  poolLimit === 250 && styles.variantButtonActive,
-                ]}
-                onPress={() => setPoolLimit(250)}>
-                <Text
-                  style={[
-                    styles.variantButtonText,
-                    poolLimit === 250 && styles.variantButtonTextActive,
-                  ]}>
-                  250
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <SegmentedControl
+              values={['101', '201', '250', 'Custom']}
+              selectedIndex={
+                isCustomPoolLimit
+                  ? 3
+                  : PRESET_POOL_LIMITS.indexOf(poolLimit as 101 | 201 | 250)
+              }
+              onChange={event => {
+                const index = event.nativeEvent.selectedSegmentIndex;
+                if (index === 3) {
+                  setIsCustomPoolLimit(true);
+                } else {
+                  setIsCustomPoolLimit(false);
+                  setCustomPoolLimitText('');
+                  setPoolLimit(PRESET_POOL_LIMITS[index]);
+                }
+              }}
+              style={styles.segmentedControl}
+              tintColor="#0f3460"
+              fontStyle={{ color: '#aaa' }}
+              activeFontStyle={{ color: '#fff' }}
+            />
+            {isCustomPoolLimit && (
+              <TextInput
+                style={[styles.input, styles.customPoolInput]}
+                value={customPoolLimitText}
+                onChangeText={text => {
+                  setCustomPoolLimitText(text);
+                  const parsed = parseInt(text, 10);
+                  if (parsed > 0) {
+                    setPoolLimit(parsed);
+                  }
+                }}
+                keyboardType="numeric"
+                placeholder="Enter custom pool limit"
+                placeholderTextColor="#666"
+                autoFocus
+              />
+            )}
           </View>
         )}
 
@@ -295,6 +295,12 @@ const styles = StyleSheet.create({
     padding: 12,
     color: '#eee',
     fontSize: 16,
+  },
+  customPoolInput: {
+    marginTop: 12,
+  },
+  segmentedControl: {
+    height: 40,
   },
   playerRow: {
     flexDirection: 'row',
