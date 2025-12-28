@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import { LineChart } from 'react-native-chart-kit';
 import { useGame } from '../context/GameContext';
 import { useTheme } from '../context/ThemeContext';
 import Icon from '../components/Icon';
+import EditRoundModal from '../components/EditRoundModal';
 import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
+import { Round } from '../types/game';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -21,6 +23,8 @@ const HistoryScreen = ({ navigation, route }: any) => {
   const { currentGame, gameHistory } = useGame();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [editingRound, setEditingRound] = useState<Round | null>(null);
+  const [editingRoundNumber, setEditingRoundNumber] = useState<number>(0);
 
   // Track touch position for swipe detection
   const touchStartX = useRef(0);
@@ -283,13 +287,28 @@ const HistoryScreen = ({ navigation, route }: any) => {
 
             {[...displayGame.rounds].reverse().map((round, index) => {
               const roundNumber = displayGame.rounds.length - index;
+              const canEdit = !viewingHistoricalGame;
 
               return (
-                <View key={round.id} style={styles.roundCard}>
+                <TouchableOpacity
+                  key={round.id}
+                  style={styles.roundCard}
+                  onPress={() => {
+                    if (canEdit) {
+                      setEditingRound(round);
+                      setEditingRoundNumber(roundNumber);
+                    }
+                  }}
+                  disabled={!canEdit}
+                  accessibilityLabel={`Edit round ${roundNumber}`}
+                  accessibilityRole="button">
                   <View style={styles.roundHeader}>
                     <View style={styles.roundNumberBadge}>
                       <Text style={styles.roundNumberText}>R{roundNumber}</Text>
                     </View>
+                    {canEdit && (
+                      <Icon name="pencil" size={IconSize.small} color={colors.tertiaryLabel} weight="medium" />
+                    )}
                   </View>
                   <View style={styles.roundScores}>
                     {displayGame.players.map((player, playerIndex) => {
@@ -324,7 +343,7 @@ const HistoryScreen = ({ navigation, route }: any) => {
                       );
                     })}
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -353,6 +372,18 @@ const HistoryScreen = ({ navigation, route }: any) => {
           ) : null}
         </View>
       </ScrollView>
+
+      {/* Edit Round Modal */}
+      <EditRoundModal
+        visible={editingRound !== null}
+        round={editingRound}
+        roundNumber={editingRoundNumber}
+        players={displayGame.players}
+        onClose={() => {
+          setEditingRound(null);
+          setEditingRoundNumber(0);
+        }}
+      />
     </SafeAreaView>
   );
 };
