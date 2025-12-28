@@ -7,6 +7,7 @@ interface GameContextType {
   gameHistory: Game[];
   createGame: (config: GameConfig, players: Player[], name?: string) => void;
   addRound: (scores: ScoreInput[]) => void;
+  updateRound: (roundId: string, scores: ScoreInput[]) => void;
   resetGame: () => void;
   loadGame: () => Promise<void>;
   deleteGameFromHistory: (gameId: string) => void;
@@ -109,6 +110,83 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     saveGame(updatedGame);
   };
 
+  const updateRound = (roundId: string, scores: ScoreInput[]) => {
+    if (!currentGame) return;
+
+    // Find the round index
+    const roundIndex = currentGame.rounds.findIndex(r => r.id === roundId);
+    if (roundIndex === -1) return;
+
+    // Calculate new scores for the round
+    const roundScores: { [playerId: string]: number } = {};
+    let winner: string | undefined;
+
+    scores.forEach(scoreInput => {
+      const calculatedScore = calculateScore(scoreInput, currentGame.config);
+      roundScores[scoreInput.playerId] = calculatedScore;
+
+      if (scoreInput.isDeclared && !scoreInput.hasInvalidDeclaration) {
+        winner = scoreInput.playerId;
+      }
+    });
+
+    // Update the round
+    const updatedRounds = [...currentGame.rounds];
+    updatedRounds[roundIndex] = {
+      ...updatedRounds[roundIndex],
+      scores: roundScores,
+      winner,
+    };
+
+    // Recalculate all player scores from scratch
+    const recalculatedPlayers = currentGame.players.map(player => ({
+      ...player,
+      score: 0,
+      isEliminated: false,
+    }));
+
+    // Replay all rounds to get accurate totals
+    let gameWinner: string | undefined;
+    updatedRounds.forEach((round, idx) => {
+      recalculatedPlayers.forEach(player => {
+        const roundScore = round.scores[player.id] || 0;
+        player.score += roundScore;
+
+        // Check elimination for pool games
+        if (currentGame.config.variant === 'pool' && currentGame.config.poolLimit) {
+          if (player.score > currentGame.config.poolLimit) {
+            player.isEliminated = true;
+          }
+        }
+      });
+
+      // Check for game winner after each round
+      const activePlayers = recalculatedPlayers.filter(p => !p.isEliminated);
+
+      if (currentGame.config.variant === 'pool' && activePlayers.length === 1) {
+        gameWinner = activePlayers[0].id;
+      } else if (
+        currentGame.config.variant === 'deals' &&
+        currentGame.config.numberOfDeals &&
+        idx + 1 >= currentGame.config.numberOfDeals
+      ) {
+        const lowestScore = Math.min(...recalculatedPlayers.map(p => p.score));
+        gameWinner = recalculatedPlayers.find(p => p.score === lowestScore)?.id;
+      }
+    });
+
+    const updatedGame: Game = {
+      ...currentGame,
+      players: recalculatedPlayers,
+      rounds: updatedRounds,
+      winner: gameWinner,
+      completedAt: gameWinner ? new Date() : undefined,
+    };
+
+    setCurrentGame(updatedGame);
+    saveGame(updatedGame);
+  };
+
   const resetGame = () => {
     setCurrentGame(null);
     AsyncStorage.removeItem('currentGame');
@@ -183,6 +261,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         gameHistory,
         createGame,
         addRound,
+        updateRound,
         resetGame,
         loadGame,
         deleteGameFromHistory,

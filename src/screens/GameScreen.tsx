@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Keyboard,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
@@ -18,6 +17,7 @@ import { useGame } from '../context/GameContext';
 import { useTheme } from '../context/ThemeContext';
 import { ScoreInput } from '../types/game';
 import FireworksModal from '../components/FireworksModal';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 import Icon from '../components/Icon';
 import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
 
@@ -32,6 +32,10 @@ const GameScreen = ({ navigation }: any) => {
   const [customScores, setCustomScores] = useState<{ [playerId: string]: number }>({});
   const [showFireworks, setShowFireworks] = useState(false);
   const [gameWinnerName, setGameWinnerName] = useState('');
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [pendingScores, setPendingScores] = useState<ScoreInput[] | null>(null);
   const inputRefs = useRef<{ [playerId: string]: TextInput | null }>({});
 
   // Track touch position for swipe detection
@@ -176,14 +180,24 @@ const GameScreen = ({ navigation }: any) => {
     const invalidDeclarationCount = scores.filter(s => s.hasInvalidDeclaration).length;
 
     if (declaredCount === 0 && invalidDeclarationCount === 0) {
-      Alert.alert('Error', 'Please mark a winner (tap player name)');
+      setErrorMessage('Please mark a winner (tap player name)');
+      setShowError(true);
       return;
     }
 
     if (declaredCount > 1) {
-      Alert.alert('Error', 'Only one player can be the winner');
+      setErrorMessage('Only one player can be the winner');
+      setShowError(true);
       return;
     }
+
+    // Store scores and show confirmation
+    setPendingScores(scores);
+    setShowConfirmation(true);
+  };
+
+  const confirmSubmit = () => {
+    if (!pendingScores) return;
 
     // Check if this round will end the game (for pool rummy)
     // Player is eliminated when score > poolLimit (survives at exactly the limit)
@@ -202,9 +216,11 @@ const GameScreen = ({ navigation }: any) => {
       }
     }
 
-    addRound(scores);
+    addRound(pendingScores);
     setPlayerStates({});
     setCustomScores({});
+    setPendingScores(null);
+    setShowConfirmation(false);
 
     if (winnerName || currentGame.winner) {
       const winner = winnerName || currentGame.players.find(p => p.id === currentGame.winner)?.name;
@@ -398,6 +414,31 @@ const GameScreen = ({ navigation }: any) => {
           visible={showFireworks}
           winnerName={gameWinnerName}
           onClose={handleFireworksClose}
+        />
+
+        <ConfirmationDialog
+          visible={showConfirmation}
+          title="Submit Round"
+          message="Are you sure you want to submit this round? Scores will be added to player totals."
+          type="info"
+          confirmText="Submit"
+          cancelText="Cancel"
+          onConfirm={confirmSubmit}
+          onCancel={() => {
+            setShowConfirmation(false);
+            setPendingScores(null);
+          }}
+        />
+
+        <ConfirmationDialog
+          visible={showError}
+          title="Error"
+          message={errorMessage}
+          type="error"
+          confirmText="OK"
+          cancelText="Dismiss"
+          onConfirm={() => setShowError(false)}
+          onCancel={() => setShowError(false)}
         />
       </SafeAreaView>
     </TouchableWithoutFeedback>
