@@ -364,6 +364,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   // Check if eliminated players can rejoin
   // Players can rejoin only when no active player is in compulsory play
+  // Note: Players who have rejoined are excluded from compulsory play check
+  // since they rejoin at high scores by design and shouldn't block other rejoins
   const canPlayersRejoin = useCallback((): boolean => {
     if (!currentGame) return false;
     if (currentGame.config.variant !== 'pool') return false;
@@ -373,15 +375,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const eliminatedPlayers = currentGame.players.filter(p => p.isEliminated);
     if (eliminatedPlayers.length === 0) return false;
 
-    // Check if any active player is in compulsory play
+    // Check if any active player (who hasn't rejoined) is in compulsory play
+    // Players who have rejoined (rejoinCount > 0) are excluded from this check
     const activePlayers = currentGame.players.filter(p => !p.isEliminated);
-    const anyInCompulsoryPlay = activePlayers.some(p => isPlayerInCompulsoryPlay(p.id));
+    const originalPlayers = activePlayers.filter(p => !p.rejoinCount || p.rejoinCount === 0);
+    const anyInCompulsoryPlay = originalPlayers.some(p => isPlayerInCompulsoryPlay(p.id));
 
     return !anyInCompulsoryPlay;
   }, [currentGame, isPlayerInCompulsoryPlay]);
 
   // Rejoin an eliminated player
   // Player joins at highest active player's score + 1
+  // Player is seated to the left of the current dealer
   const rejoinPlayer = useCallback((playerId: string) => {
     if (!currentGame) return;
     if (!canPlayersRejoin()) return;
@@ -394,17 +399,34 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const highestScore = Math.max(...activePlayers.map(p => p.score));
     const rejoinScore = highestScore + 1;
 
-    const updatedPlayers = currentGame.players.map(p => {
-      if (p.id === playerId) {
-        return {
-          ...p,
-          score: rejoinScore,
-          isEliminated: false,
-          rejoinCount: (p.rejoinCount || 0) + 1,
-        };
-      }
-      return p;
-    });
+    // Create updated player object
+    const updatedPlayer: Player = {
+      ...player,
+      score: rejoinScore,
+      isEliminated: false,
+      rejoinCount: (player.rejoinCount || 0) + 1,
+    };
+
+    // Find positions for reordering
+    const dealerIndex = currentGame.players.findIndex(p => p.id === currentGame.dealerId);
+    const playerIndex = currentGame.players.findIndex(p => p.id === playerId);
+
+    // Remove player from current position
+    const playersWithoutRejoiner = currentGame.players.filter(p => p.id !== playerId);
+
+    // Calculate insertion index (left of dealer = at dealer's position, pushing dealer right)
+    // If player was before dealer, dealer's index shifted down by 1 after removal
+    let insertIndex = dealerIndex;
+    if (playerIndex < dealerIndex) {
+      insertIndex = dealerIndex - 1;
+    }
+
+    // Insert player at dealer's position (seats them to the left of dealer)
+    const updatedPlayers = [
+      ...playersWithoutRejoiner.slice(0, insertIndex),
+      updatedPlayer,
+      ...playersWithoutRejoiner.slice(insertIndex),
+    ];
 
     const updatedGame: Game = {
       ...currentGame,
