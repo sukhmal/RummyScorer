@@ -1,0 +1,344 @@
+/**
+ * Scoring system for the Rummy game engine
+ */
+
+import {
+  Card,
+  PracticeGameState,
+  PracticePlayer,
+  RoundResult,
+  PracticeVariant,
+  POOL_LIMITS,
+} from './types';
+import { calculateDeadwoodPoints } from './hand';
+import { autoArrangeHand } from './declaration';
+
+/**
+ * Maximum points a player can get in a single round
+ */
+export const MAX_ROUND_POINTS = 80;
+
+/**
+ * Default penalties
+ */
+export const DEFAULT_FIRST_DROP = 25;
+export const DEFAULT_MIDDLE_DROP = 50;
+export const DEFAULT_INVALID_DECLARATION = 80;
+
+/**
+ * Calculate points for a player's hand at end of round
+ * Winner gets 0 points, others get their deadwood points (capped at 80)
+ */
+export const calculateHandPoints = (hand: Card[]): number => {
+  const analysis = autoArrangeHand(hand);
+
+  // If valid declaration, 0 points
+  if (analysis.canDeclare) {
+    return 0;
+  }
+
+  // Otherwise, calculate deadwood points
+  const points = calculateDeadwoodPoints(analysis.deadwood);
+
+  // Add points from invalid melds (shouldn't happen if properly validated)
+  // But in case of invalid declaration, count all cards
+  return Math.min(points, MAX_ROUND_POINTS);
+};
+
+/**
+ * Calculate points for an invalid declaration
+ * Full hand count, capped at 80 in pool rummy
+ */
+export const calculateInvalidDeclarationPoints = (
+  hand: Card[],
+  variant: PracticeVariant
+): number => {
+  if (variant.startsWith('pool')) {
+    // Pool rummy: fixed 80 points for invalid declaration
+    return MAX_ROUND_POINTS;
+  }
+
+  // Other variants: count full hand value
+  const totalPoints = hand.reduce((sum, card) => sum + card.value, 0);
+  return totalPoints;
+};
+
+/**
+ * Calculate drop penalty points
+ */
+export const calculateDropPoints = (
+  dropType: 'first' | 'middle',
+  firstDropPenalty: number = DEFAULT_FIRST_DROP,
+  middleDropPenalty: number = DEFAULT_MIDDLE_DROP
+): number => {
+  return dropType === 'first' ? firstDropPenalty : middleDropPenalty;
+};
+
+/**
+ * Calculate round scores for all players
+ */
+export interface RoundScoreResult {
+  scores: { [playerId: string]: number };
+  winnerId: string;
+  declarationType: 'valid' | 'invalid' | 'drop-first' | 'drop-middle';
+}
+
+export const calculateRoundScores = (
+  hands: { [playerId: string]: Card[] },
+  winnerId: string,
+  declarationType: 'valid' | 'invalid' | 'drop-first' | 'drop-middle',
+  variant: PracticeVariant,
+  firstDropPenalty: number = DEFAULT_FIRST_DROP,
+  middleDropPenalty: number = DEFAULT_MIDDLE_DROP,
+  invalidDeclarationPenalty: number = DEFAULT_INVALID_DECLARATION
+): { [playerId: string]: number } => {
+  const scores: { [playerId: string]: number } = {};
+
+  for (const playerId of Object.keys(hands)) {
+    if (playerId === winnerId) {
+      if (declarationType === 'valid') {
+        scores[playerId] = 0;
+      } else if (declarationType === 'invalid') {
+        // Invalid declaration - player gets penalty
+        scores[playerId] = variant.startsWith('pool')
+          ? invalidDeclarationPenalty
+          : calculateDeadwoodPoints(hands[playerId]);
+      } else if (declarationType === 'drop-first') {
+        scores[playerId] = firstDropPenalty;
+      } else {
+        scores[playerId] = middleDropPenalty;
+      }
+    } else {
+      // Other players get their deadwood points
+      scores[playerId] = calculateHandPoints(hands[playerId]);
+    }
+  }
+
+  return scores;
+};
+
+/**
+ * Update cumulative scores and check for eliminations (pool rummy)
+ */
+export const updateCumulativeScores = (
+  currentScores: { [playerId: string]: number },
+  roundScores: { [playerId: string]: number }
+): { [playerId: string]: number } => {
+  const newScores: { [playerId: string]: number } = { ...currentScores };
+
+  for (const playerId of Object.keys(roundScores)) {
+    newScores[playerId] = (newScores[playerId] || 0) + roundScores[playerId];
+  }
+
+  return newScores;
+};
+
+/**
+ * Check if a player is eliminated in pool rummy
+ */
+export const isPlayerEliminated = (
+  score: number,
+  variant: PracticeVariant
+): boolean => {
+  const limit = POOL_LIMITS[variant];
+  if (!limit) return false;
+
+  return score > limit;
+};
+
+/**
+ * Get active players (not eliminated) for pool rummy
+ */
+export const getActivePlayers = (
+  players: PracticePlayer[],
+  scores: { [playerId: string]: number },
+  variant: PracticeVariant
+): PracticePlayer[] => {
+  if (!variant.startsWith('pool')) {
+    return players;
+  }
+
+  return players.filter(p => !isPlayerEliminated(scores[p.id] || 0, variant));
+};
+
+/**
+ * Check if game should end
+ */
+export const shouldGameEnd = (
+  players: PracticePlayer[],
+  scores: { [playerId: string]: number },
+  roundResults: RoundResult[],
+  variant: PracticeVariant,
+  numberOfDeals?: number
+): boolean => {
+  if (variant.startsWith('pool')) {
+    // Pool rummy: game ends when only 1 player remains
+    const activePlayers = getActivePlayers(players, scores, variant);
+    return activePlayers.length <= 1;
+  }
+
+  if (variant === 'deals' && numberOfDeals) {
+    // Deals rummy: game ends after fixed number of deals
+    return roundResults.length >= numberOfDeals;
+  }
+
+  if (variant === 'points') {
+    // Points rummy: game ends after 1 round
+    return roundResults.length >= 1;
+  }
+
+  return false;
+};
+
+/**
+ * Determine the winner of the game
+ */
+export const determineGameWinner = (
+  players: PracticePlayer[],
+  scores: { [playerId: string]: number },
+  variant: PracticeVariant
+): PracticePlayer | null => {
+  if (variant.startsWith('pool')) {
+    // Pool rummy: last remaining player wins
+    const activePlayers = getActivePlayers(players, scores, variant);
+    return activePlayers.length === 1 ? activePlayers[0] : null;
+  }
+
+  if (variant === 'deals' || variant === 'points') {
+    // Lowest score wins
+    let winner: PracticePlayer | null = null;
+    let lowestScore = Infinity;
+
+    for (const player of players) {
+      const score = scores[player.id] || 0;
+      if (score < lowestScore) {
+        lowestScore = score;
+        winner = player;
+      }
+    }
+
+    return winner;
+  }
+
+  return null;
+};
+
+/**
+ * Calculate winnings for points rummy
+ */
+export const calculatePointsRummyWinnings = (
+  winnerId: string,
+  scores: { [playerId: string]: number },
+  pointValue: number
+): number => {
+  let totalPoints = 0;
+
+  for (const playerId of Object.keys(scores)) {
+    if (playerId !== winnerId) {
+      totalPoints += scores[playerId];
+    }
+  }
+
+  return totalPoints * pointValue;
+};
+
+/**
+ * Get score display string
+ */
+export const formatScore = (score: number): string => {
+  return score.toString();
+};
+
+/**
+ * Get player rank based on scores
+ */
+export const getPlayerRanks = (
+  players: PracticePlayer[],
+  scores: { [playerId: string]: number },
+  variant: PracticeVariant
+): { playerId: string; rank: number; score: number }[] => {
+  const sortedPlayers = [...players].sort((a, b) => {
+    const scoreA = scores[a.id] || 0;
+    const scoreB = scores[b.id] || 0;
+
+    if (variant.startsWith('pool')) {
+      // In pool, lower is better (not eliminated)
+      const eliminatedA = isPlayerEliminated(scoreA, variant);
+      const eliminatedB = isPlayerEliminated(scoreB, variant);
+
+      if (eliminatedA && !eliminatedB) return 1;
+      if (!eliminatedA && eliminatedB) return -1;
+    }
+
+    // Lower score is better
+    return scoreA - scoreB;
+  });
+
+  return sortedPlayers.map((player, index) => ({
+    playerId: player.id,
+    rank: index + 1,
+    score: scores[player.id] || 0,
+  }));
+};
+
+/**
+ * Check if player can rejoin (pool rummy)
+ */
+export const canRejoin = (
+  playerId: string,
+  gameState: PracticeGameState
+): boolean => {
+  if (!gameState.config.variant.startsWith('pool')) {
+    return false;
+  }
+
+  const player = gameState.players.find(p => p.id === playerId);
+  if (!player) return false;
+
+  // Check if player is eliminated
+  if (!isPlayerEliminated(gameState.scores[playerId] || 0, gameState.config.variant)) {
+    return false; // Not eliminated, can't rejoin
+  }
+
+  // Check if any active player is in compulsory play
+  const limit = POOL_LIMITS[gameState.config.variant] || 250;
+  const firstDropPenalty = gameState.config.firstDropPenalty;
+
+  const activePlayers = getActivePlayers(
+    gameState.players,
+    gameState.scores,
+    gameState.config.variant
+  );
+
+  const someoneInCompulsory = activePlayers.some(p => {
+    const score = gameState.scores[p.id] || 0;
+    const remainingSpace = limit - score;
+    return remainingSpace < firstDropPenalty;
+  });
+
+  return !someoneInCompulsory;
+};
+
+/**
+ * Calculate rejoin score
+ */
+export const calculateRejoinScore = (
+  gameState: PracticeGameState
+): number => {
+  const activePlayers = getActivePlayers(
+    gameState.players,
+    gameState.scores,
+    gameState.config.variant
+  );
+
+  if (activePlayers.length === 0) {
+    return 0;
+  }
+
+  // Find highest score among active players
+  const highestScore = Math.max(
+    ...activePlayers.map(p => gameState.scores[p.id] || 0)
+  );
+
+  return highestScore + 1;
+};
