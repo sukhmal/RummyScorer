@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GameProvider, useGame } from './src/context/GameContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SettingsProvider } from './src/context/SettingsContext';
+import { PracticeGameProvider } from './src/context/PracticeGameContext';
 import Icon from './src/components/Icon';
 import { TapTargets, IconSize, Spacing, BorderRadius, Typography } from './src/theme';
 
@@ -14,6 +15,11 @@ import GameSetupScreen from './src/screens/GameSetupScreen';
 import GameScreen from './src/screens/GameScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import RulesScreen from './src/screens/RulesScreen';
+import {
+  PracticeSetupScreen,
+  PracticeGameScreen,
+  PracticeHistoryScreen,
+} from './src/screens/practice';
 
 const Stack = createNativeStackNavigator();
 
@@ -136,6 +142,31 @@ const AppNavigator = () => {
             headerLeft: HomeButton,
           }}
         />
+        {/* Practice Mode Screens */}
+        <Stack.Screen
+          name="PracticeSetup"
+          component={PracticeSetupScreen}
+          options={{
+            title: 'Practice Mode',
+            headerLeft: HomeButton,
+          }}
+        />
+        <Stack.Screen
+          name="PracticeGame"
+          component={PracticeGameScreen}
+          options={{
+            title: 'Practice',
+            headerLeft: HomeButton,
+          }}
+        />
+        <Stack.Screen
+          name="PracticeHistory"
+          component={PracticeHistoryScreen}
+          options={{
+            title: 'Results',
+            headerShown: false,
+          }}
+        />
       </Stack.Navigator>
     </>
   );
@@ -147,9 +178,11 @@ function App() {
       <ThemeProvider>
         <SettingsProvider>
           <GameProvider>
-            <NavigationContainer>
-              <AppNavigator />
-            </NavigationContainer>
+            <PracticeGameProvider>
+              <NavigationContainer>
+                <AppNavigator />
+              </NavigationContainer>
+            </PracticeGameProvider>
           </GameProvider>
         </SettingsProvider>
       </ThemeProvider>
