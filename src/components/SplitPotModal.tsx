@@ -38,6 +38,9 @@ const SplitPotModal: React.FC<SplitPotModalProps> = ({
   const currencySymbol = getCurrencySymbol(defaults.currency);
 
   const [shares, setShares] = useState<{ [playerId: string]: string }>({});
+  const [selectedMode, setSelectedMode] = useState<'proportional' | 'equal' | 'custom'>('proportional');
+  const [customInputMode, setCustomInputMode] = useState<'amount' | 'percent'>('amount');
+  const [percentages, setPercentages] = useState<{ [playerId: string]: string }>({});
 
   // Calculate proportional split based on drops available (poolLimit - score)
   // This is intuitive: your share is proportional to your remaining room in the pool
@@ -115,14 +118,72 @@ const SplitPotModal: React.FC<SplitPotModalProps> = ({
       newShares[p.id] = (proportionalShares[p.id] || 0).toString();
     });
     setShares(newShares);
+    setSelectedMode('proportional');
   };
 
   const clearForCustom = () => {
     const newShares: { [playerId: string]: string } = {};
+    const newPercentages: { [playerId: string]: string } = {};
     activePlayers.forEach(p => {
       newShares[p.id] = '';
+      newPercentages[p.id] = '';
     });
     setShares(newShares);
+    setPercentages(newPercentages);
+    setSelectedMode('custom');
+  };
+
+  const updatePercentage = (playerId: string, value: string) => {
+    // Allow digits and one decimal point
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    // Prevent multiple decimal points
+    const parts = cleaned.split('.');
+    const sanitized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+
+    setPercentages(prev => ({
+      ...prev,
+      [playerId]: sanitized,
+    }));
+
+    // Calculate amount from percentage
+    const percent = parseFloat(sanitized) || 0;
+    const amount = Math.floor((percent / 100) * totalPot);
+    setShares(prev => ({
+      ...prev,
+      [playerId]: amount.toString(),
+    }));
+  };
+
+  const recalculateAmountsFromPercentages = () => {
+    const newShares: { [playerId: string]: number } = {};
+    let allocated = 0;
+
+    // Find player with lowest score (they get the remainder)
+    const lowestScorePlayer = activePlayers.reduce((min, p) =>
+      p.score < min.score ? p : min
+    );
+
+    // Calculate shares for all except lowest scorer
+    activePlayers.forEach((p) => {
+      if (p.id === lowestScorePlayer.id) {
+        // Skip for now, will calculate after others
+      } else {
+        const percent = parseFloat(percentages[p.id]) || 0;
+        const amount = Math.floor((percent / 100) * totalPot);
+        newShares[p.id] = amount;
+        allocated += amount;
+      }
+    });
+
+    // Give remainder to player with lowest score
+    newShares[lowestScorePlayer.id] = totalPot - allocated;
+
+    // Convert to string state
+    const stringShares: { [playerId: string]: string } = {};
+    Object.keys(newShares).forEach(id => {
+      stringShares[id] = newShares[id].toString();
+    });
+    setShares(stringShares);
   };
 
   const splitEqually = () => {
@@ -136,6 +197,7 @@ const SplitPotModal: React.FC<SplitPotModalProps> = ({
       newShares[p.id] = (equalShare + (index < remainder ? 1 : 0)).toString();
     });
     setShares(newShares);
+    setSelectedMode('equal');
   };
 
   const currentTotal = getCurrentTotal();
@@ -170,18 +232,62 @@ const SplitPotModal: React.FC<SplitPotModalProps> = ({
             <Text style={styles.potValue}>{currencySymbol}{totalPot}</Text>
           </View>
 
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickButton} onPress={resetToProportional}>
-              <Text style={styles.quickButtonText}>Proportional</Text>
+          {/* Segmented Control */}
+          <View style={styles.segmentedControl}>
+            <TouchableOpacity
+              style={[styles.segment, selectedMode === 'proportional' && styles.segmentSelected]}
+              onPress={resetToProportional}>
+              <Text style={[styles.segmentText, selectedMode === 'proportional' && styles.segmentTextSelected]}>
+                Proportional
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickButton} onPress={splitEqually}>
-              <Text style={styles.quickButtonText}>Equal</Text>
+            <TouchableOpacity
+              style={[styles.segment, selectedMode === 'equal' && styles.segmentSelected]}
+              onPress={splitEqually}>
+              <Text style={[styles.segmentText, selectedMode === 'equal' && styles.segmentTextSelected]}>
+                Equal
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickButton} onPress={clearForCustom}>
-              <Text style={styles.quickButtonText}>Custom</Text>
+            <TouchableOpacity
+              style={[styles.segment, styles.segmentLast, selectedMode === 'custom' && styles.segmentSelected]}
+              onPress={clearForCustom}>
+              <Text style={[styles.segmentText, selectedMode === 'custom' && styles.segmentTextSelected]}>
+                Custom
+              </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Custom Mode Toggle */}
+          {selectedMode === 'custom' && (
+            <View style={styles.customToggle}>
+              <TouchableOpacity
+                style={[styles.customToggleButton, customInputMode === 'amount' && styles.customToggleButtonSelected]}
+                onPress={() => setCustomInputMode('amount')}>
+                <Text style={[styles.customToggleText, customInputMode === 'amount' && styles.customToggleTextSelected]}>
+                  {currencySymbol} Amount
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.customToggleButton, customInputMode === 'percent' && styles.customToggleButtonSelected]}
+                onPress={() => {
+                  setCustomInputMode('percent');
+                  // Initialize percentages from current amounts if any
+                  const sharesTotal = getCurrentTotal();
+                  if (sharesTotal > 0) {
+                    const newPercentages: { [playerId: string]: string } = {};
+                    activePlayers.forEach(p => {
+                      const share = parseInt(shares[p.id], 10) || 0;
+                      newPercentages[p.id] = ((share / totalPot) * 100).toFixed(1);
+                    });
+                    setPercentages(newPercentages);
+                  }
+                }}>
+                <Text style={[styles.customToggleText, customInputMode === 'percent' && styles.customToggleTextSelected]}>
+                  % Percent
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Player Shares */}
           <ScrollView style={styles.playerList} showsVerticalScrollIndicator={false}>
@@ -191,16 +297,37 @@ const SplitPotModal: React.FC<SplitPotModalProps> = ({
                   <Text style={styles.playerName} numberOfLines={1}>{player.name}</Text>
                   <Text style={styles.playerScore}>{player.score} pts</Text>
                 </View>
-                <View style={styles.shareInput}>
-                  <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={shares[player.id] || '0'}
-                    onChangeText={(text) => updateShare(player.id, text.replace(/[^0-9]/g, ''))}
-                    keyboardType="numeric"
-                    selectTextOnFocus
-                  />
-                </View>
+                {selectedMode === 'custom' && customInputMode === 'percent' ? (
+                  <View style={styles.shareInputRow}>
+                    <View style={styles.shareInput}>
+                      <TextInput
+                        style={styles.input}
+                        value={percentages[player.id] || ''}
+                        onChangeText={(text) => updatePercentage(player.id, text)}
+                        onBlur={recalculateAmountsFromPercentages}
+                        keyboardType="decimal-pad"
+                        placeholder="0"
+                        placeholderTextColor={colors.placeholder}
+                        selectTextOnFocus
+                      />
+                      <Text style={styles.percentSuffix}>%</Text>
+                    </View>
+                    <Text style={styles.amountPreview}>
+                      {currencySymbol}{shares[player.id] || '0'}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.shareInput}>
+                    <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={shares[player.id] || '0'}
+                      onChangeText={(text) => updateShare(player.id, text.replace(/[^0-9]/g, ''))}
+                      keyboardType="numeric"
+                      selectTextOnFocus
+                    />
+                  </View>
+                )}
               </View>
             ))}
           </ScrollView>
@@ -294,22 +421,56 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontWeight: '700',
     color: colors.gold,
   },
-  quickActions: {
+  segmentedControl: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: BorderRadius.medium,
+    padding: 2,
     marginBottom: Spacing.md,
   },
-  quickButton: {
+  segment: {
     flex: 1,
-    backgroundColor: colors.background,
     paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.small,
     alignItems: 'center',
+    borderRadius: BorderRadius.small,
   },
-  quickButtonText: {
+  segmentLast: {
+    // No additional styles needed, just for clarity
+  },
+  segmentSelected: {
+    backgroundColor: colors.tint,
+  },
+  segmentText: {
     ...Typography.footnote,
     fontWeight: '600',
-    color: colors.tint,
+    color: colors.secondaryLabel,
+  },
+  segmentTextSelected: {
+    color: colors.label,
+  },
+  customToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    borderRadius: BorderRadius.small,
+    padding: 2,
+    marginBottom: Spacing.sm,
+  },
+  customToggleButton: {
+    flex: 1,
+    paddingVertical: Spacing.xs,
+    alignItems: 'center',
+    borderRadius: BorderRadius.small - 2,
+  },
+  customToggleButtonSelected: {
+    backgroundColor: colors.cardBackground,
+  },
+  customToggleText: {
+    ...Typography.caption1,
+    fontWeight: '500',
+    color: colors.tertiaryLabel,
+  },
+  customToggleTextSelected: {
+    color: colors.label,
   },
   playerList: {
     maxHeight: 200,
@@ -336,25 +497,40 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     ...Typography.caption1,
     color: colors.secondaryLabel,
   },
+  shareInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   shareInput: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
     borderRadius: BorderRadius.small,
     paddingHorizontal: Spacing.sm,
-    minWidth: 100,
+    minWidth: 80,
   },
   currencyPrefix: {
     ...Typography.body,
     color: colors.secondaryLabel,
     marginRight: 4,
   },
+  percentSuffix: {
+    ...Typography.body,
+    color: colors.secondaryLabel,
+    marginLeft: 2,
+  },
   input: {
     ...Typography.body,
     color: colors.label,
     paddingVertical: Spacing.sm,
-    minWidth: 60,
+    minWidth: 50,
     textAlign: 'right',
+  },
+  amountPreview: {
+    ...Typography.caption1,
+    color: colors.secondaryLabel,
+    minWidth: 50,
   },
   totalRow: {
     flexDirection: 'row',

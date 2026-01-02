@@ -293,16 +293,6 @@ const GameScreen = ({ navigation }: any) => {
                 <Icon name="arrow.trianglehead.2.clockwise.rotate.90" size={IconSize.small} color={colors.accent} weight="medium" />
                 <Text style={styles.infoBadgeText}>Round {currentGame.rounds.length + 1}</Text>
               </View>
-              {canSplitPot() && (
-                <TouchableOpacity
-                  style={styles.splitPotBadge}
-                  onPress={() => setShowSplitPot(true)}
-                  accessibilityLabel="Split pot"
-                  accessibilityRole="button">
-                  <Icon name="chart.pie.fill" size={IconSize.small} color={colors.gold} weight="medium" />
-                  <Text style={styles.splitPotBadgeText}>Split</Text>
-                </TouchableOpacity>
-              )}
             </View>
           </View>
 
@@ -335,7 +325,29 @@ const GameScreen = ({ navigation }: any) => {
 
           {/* Score Table */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>PLAYERS</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>PLAYERS</Text>
+              <View style={styles.sectionActions}>
+                <TouchableOpacity
+                  style={styles.sectionButton}
+                  onPress={() => navigation.navigate('History')}
+                  accessibilityLabel="View scores"
+                  accessibilityRole="button">
+                  <Icon name="chart.bar.fill" size={IconSize.small} color={colors.gold} weight="medium" />
+                  <Text style={styles.sectionButtonText}>Scores</Text>
+                </TouchableOpacity>
+                {canSplitPot() && (
+                  <TouchableOpacity
+                    style={styles.sectionButton}
+                    onPress={() => setShowSplitPot(true)}
+                    accessibilityLabel="Split pot"
+                    accessibilityRole="button">
+                    <Icon name="chart.pie.fill" size={IconSize.small} color={colors.gold} weight="medium" />
+                    <Text style={styles.sectionButtonText}>Split</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
             <View style={styles.card}>
               {/* Table Header */}
               <View style={styles.tableHeader}>
@@ -649,13 +661,36 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   section: {
     marginBottom: Spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+    marginLeft: Spacing.xs,
+  },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.secondaryLabel,
     letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
-    marginLeft: Spacing.xs,
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  sectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gold + '20',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.large,
+    gap: Spacing.xs,
+  },
+  sectionButtonText: {
+    ...Typography.footnote,
+    fontWeight: '600',
+    color: colors.gold,
   },
 
   // Card Styles
@@ -884,20 +919,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   submitButtonText: {
     ...Typography.headline,
     color: colors.label,
-  },
-  splitPotBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gold + '20',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.large,
-    gap: Spacing.sm,
-  },
-  splitPotBadgeText: {
-    ...Typography.subheadline,
-    fontWeight: '600',
-    color: colors.gold,
   },
 });
 
