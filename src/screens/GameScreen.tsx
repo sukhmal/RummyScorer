@@ -15,9 +15,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
 import { useTheme } from '../context/ThemeContext';
-import { ScoreInput } from '../types/game';
+import { ScoreInput, SplitPotShare } from '../types/game';
 import FireworksModal from '../components/FireworksModal';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import SplitPotModal from '../components/SplitPotModal';
 import Icon from '../components/Icon';
 import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
 
@@ -25,7 +26,7 @@ import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } 
 type PlayerState = 0 | 1 | 2 | 3;
 
 const GameScreen = ({ navigation }: any) => {
-  const { currentGame, addRound, canPlayersRejoin, rejoinPlayer } = useGame();
+  const { currentGame, addRound, canPlayersRejoin, rejoinPlayer, canSplitPot, splitPot, getTotalPot } = useGame();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [playerStates, setPlayerStates] = useState<{ [playerId: string]: PlayerState }>({});
@@ -36,6 +37,7 @@ const GameScreen = ({ navigation }: any) => {
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [pendingScores, setPendingScores] = useState<ScoreInput[] | null>(null);
+  const [showSplitPot, setShowSplitPot] = useState(false);
   const inputRefs = useRef<{ [playerId: string]: TextInput | null }>({});
 
   // Track touch position for swipe detection
@@ -234,6 +236,12 @@ const GameScreen = ({ navigation }: any) => {
     navigation.navigate('History');
   };
 
+  const handleSplitPotConfirm = (shares: SplitPotShare[]) => {
+    splitPot(shares);
+    setShowSplitPot(false);
+    navigation.navigate('History');
+  };
+
   const activePlayers = currentGame.players.filter(p => !p.isEliminated);
   const eliminatedPlayers = currentGame.players.filter(p => p.isEliminated);
   const rejoinEnabled = canPlayersRejoin();
@@ -285,6 +293,16 @@ const GameScreen = ({ navigation }: any) => {
                 <Icon name="arrow.trianglehead.2.clockwise.rotate.90" size={IconSize.small} color={colors.accent} weight="medium" />
                 <Text style={styles.infoBadgeText}>Round {currentGame.rounds.length + 1}</Text>
               </View>
+              {canSplitPot() && (
+                <TouchableOpacity
+                  style={styles.splitPotBadge}
+                  onPress={() => setShowSplitPot(true)}
+                  accessibilityLabel="Split pot"
+                  accessibilityRole="button">
+                  <Icon name="chart.pie.fill" size={IconSize.small} color={colors.gold} weight="medium" />
+                  <Text style={styles.splitPotBadgeText}>Split</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -524,6 +542,15 @@ const GameScreen = ({ navigation }: any) => {
           cancelText="Dismiss"
           onConfirm={() => setShowError(false)}
           onCancel={() => setShowError(false)}
+        />
+
+        <SplitPotModal
+          visible={showSplitPot}
+          totalPot={getTotalPot()}
+          poolLimit={currentGame.config.poolLimit || 250}
+          activePlayers={activePlayers}
+          onConfirm={handleSplitPotConfirm}
+          onCancel={() => setShowSplitPot(false)}
         />
       </SafeAreaView>
     </TouchableWithoutFeedback>
@@ -857,6 +884,20 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   submitButtonText: {
     ...Typography.headline,
     color: colors.label,
+  },
+  splitPotBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gold + '20',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.large,
+    gap: Spacing.sm,
+  },
+  splitPotBadgeText: {
+    ...Typography.subheadline,
+    fontWeight: '600',
+    color: colors.gold,
   },
 });
 
