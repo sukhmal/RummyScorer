@@ -12,21 +12,14 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useGame } from '../context/GameContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSettings, getCurrencySymbol } from '../context/SettingsContext';
 import { GameVariant, GameConfig, Player, PoolType } from '../types/game';
 import Icon from '../components/Icon';
 import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
+import { VariantSelector, PoolLimitSelector, NumberInputField, PrimaryButton } from '../components/shared';
 
-const GAME_TYPES: { id: GameVariant; label: string }[] = [
-  { id: 'pool', label: 'Pool' },
-  { id: 'points', label: 'Points' },
-  { id: 'deals', label: 'Deals' },
-];
-
-const POOL_LIMIT_OPTIONS = ['101', '201', '250', 'Custom'] as const;
 const PRESET_POOL_LIMITS = [101, 201, 250] as const;
 
 const GameSetupScreen = ({ navigation }: any) => {
@@ -36,8 +29,8 @@ const GameSetupScreen = ({ navigation }: any) => {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [useDefaults, setUseDefaults] = useState<boolean>(true);
   const [gameName, setGameName] = useState<string>('');
-  const [variantIndex, setVariantIndex] = useState<number>(0);
-  const [poolLimitIndex, setPoolLimitIndex] = useState<number>(2); // Default to 250
+  const [variant, setVariant] = useState<GameVariant>('pool');
+  const [poolLimit, setPoolLimit] = useState<number>(250);
   const [customPoolLimitText, setCustomPoolLimitText] = useState('');
   const [pointValue, setPointValue] = useState<number>(1);
   const [numberOfDeals, setNumberOfDeals] = useState<number>(2);
@@ -59,19 +52,14 @@ const GameSetupScreen = ({ navigation }: any) => {
     const effectiveDefaults = getEffectiveDefaults();
 
     // Set game type
-    const gameTypeIndex = GAME_TYPES.findIndex(t => t.id === effectiveDefaults.gameType);
-    if (gameTypeIndex >= 0) {
-      setVariantIndex(gameTypeIndex);
-    }
+    setVariant(effectiveDefaults.gameType);
 
     // Set pool limit
-    const poolLimit = effectiveDefaults.poolLimit;
-    const presetIndex = PRESET_POOL_LIMITS.indexOf(poolLimit as 101 | 201 | 250);
-    if (presetIndex >= 0) {
-      setPoolLimitIndex(presetIndex);
-    } else if (typeof poolLimit === 'number') {
-      setPoolLimitIndex(3); // Custom
-      setCustomPoolLimitText(poolLimit.toString());
+    const defaultPoolLimit = effectiveDefaults.poolLimit;
+    setPoolLimit(defaultPoolLimit);
+    const isPreset = PRESET_POOL_LIMITS.includes(defaultPoolLimit as 101 | 201 | 250);
+    if (!isPreset && typeof defaultPoolLimit === 'number') {
+      setCustomPoolLimitText(defaultPoolLimit.toString());
     }
 
     // Set number of deals
@@ -100,18 +88,11 @@ const GameSetupScreen = ({ navigation }: any) => {
 
   // Get effective variant based on toggle
   const getEffectiveVariant = (): GameVariant => {
-    return useDefaults ? defaults.gameType : GAME_TYPES[variantIndex].id;
+    return useDefaults ? defaults.gameType : variant;
   };
 
   const getEffectivePoolLimit = (): PoolType => {
-    if (useDefaults) {
-      return defaults.poolLimit;
-    }
-    if (isCustomPoolLimit) {
-      const parsed = parseInt(customPoolLimitText, 10);
-      return parsed > 0 ? parsed : 250;
-    }
-    return PRESET_POOL_LIMITS[poolLimitIndex];
+    return useDefaults ? defaults.poolLimit : poolLimit;
   };
 
   const getEffectiveNumberOfDeals = (): number => {
@@ -129,9 +110,6 @@ const GameSetupScreen = ({ navigation }: any) => {
   const getEffectiveJoinTableAmount = (): number => {
     return useDefaults ? defaults.joinTableAmount : joinTableAmount;
   };
-
-  const variant = GAME_TYPES[variantIndex].id;
-  const isCustomPoolLimit = poolLimitIndex === 3;
 
   const addPlayer = () => {
     if (players.length < 11) {
@@ -200,17 +178,6 @@ const GameSetupScreen = ({ navigation }: any) => {
 
   const validPlayerCount = players.filter(p => p.name.trim() !== '').length;
 
-  const getVariantDescription = (v: GameVariant) => {
-    switch (v) {
-      case 'pool':
-        return 'Players are eliminated when they exceed the pool limit. Eliminated players can rejoin when no one is in compulsory play. Last player standing wins.';
-      case 'points':
-        return 'Cash game - winner collects from losers based on their hand value × point value.';
-      case 'deals':
-        return 'Fixed number of deals. Player with lowest total score wins.';
-    }
-  };
-
   const getDefaultsSummary = () => {
     const v = defaults.gameType;
     if (v === 'pool') {
@@ -272,27 +239,12 @@ const GameSetupScreen = ({ navigation }: any) => {
         {!useDefaults && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>GAME TYPE</Text>
-            <View style={styles.segmentedCard}>
-              <SegmentedControl
-                values={GAME_TYPES.map(t => t.label)}
-                selectedIndex={variantIndex}
-                onChange={(event) => setVariantIndex(event.nativeEvent.selectedSegmentIndex)}
-                style={styles.segmentedControl}
-                fontStyle={styles.segmentedFont}
-                activeFontStyle={styles.segmentedActiveFont}
-                tintColor={colors.tint}
-                backgroundColor={colors.cardBackground}
-              />
-              <View style={styles.variantDescriptionContainer}>
-                <Icon
-                  name={variant === 'pool' ? 'person.3.fill' : variant === 'deals' ? 'square.stack.fill' : 'star.fill'}
-                  size={IconSize.medium}
-                  color={colors.tint}
-                  weight="medium"
-                />
-                <Text style={styles.variantDescription}>{getVariantDescription(variant)}</Text>
-              </View>
-            </View>
+            <VariantSelector
+              value={variant}
+              onChange={setVariant}
+              style="segmented"
+              showDescription={true}
+            />
           </View>
         )}
 
@@ -300,37 +252,14 @@ const GameSetupScreen = ({ navigation }: any) => {
         {!useDefaults && variant === 'pool' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>POOL LIMIT</Text>
-            <View style={styles.segmentedCard}>
-              <SegmentedControl
-                values={POOL_LIMIT_OPTIONS as unknown as string[]}
-                selectedIndex={poolLimitIndex}
-                onChange={(event) => {
-                  const index = event.nativeEvent.selectedSegmentIndex;
-                  setPoolLimitIndex(index);
-                  if (index === 3 && !customPoolLimitText) {
-                    setCustomPoolLimitText('300');
-                  }
-                }}
-                style={styles.segmentedControl}
-                fontStyle={styles.segmentedFont}
-                activeFontStyle={styles.segmentedActiveFont}
-                tintColor={colors.tint}
-                backgroundColor={colors.cardBackground}
-              />
-              {isCustomPoolLimit && (
-                <View style={styles.customLimitRow}>
-                  <Text style={styles.customLimitLabel}>Custom limit:</Text>
-                  <TextInput
-                    style={styles.customLimitInput}
-                    value={customPoolLimitText}
-                    onChangeText={setCustomPoolLimitText}
-                    keyboardType="numeric"
-                    placeholder="300"
-                    placeholderTextColor={colors.placeholder}
-                  />
-                </View>
-              )}
-            </View>
+            <PoolLimitSelector
+              value={poolLimit}
+              onChange={setPoolLimit}
+              allowCustom={true}
+              customValue={customPoolLimitText}
+              onCustomValueChange={setCustomPoolLimitText}
+              showHelperText={false}
+            />
           </View>
         )}
 
@@ -381,20 +310,14 @@ const GameSetupScreen = ({ navigation }: any) => {
         {!useDefaults && variant === 'pool' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>JOIN TABLE AMOUNT</Text>
-            <View style={styles.card}>
-              <View style={styles.inputRow}>
-                <Text style={styles.currencyIcon}>{getCurrencySymbol(defaults.currency)}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={joinTableAmount.toString()}
-                  onChangeText={text => setJoinTableAmount(parseInt(text, 10) || 0)}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={colors.placeholder}
-                />
-                <Text style={styles.inputSuffix}>per player</Text>
-              </View>
-            </View>
+            <NumberInputField
+              value={joinTableAmount}
+              onChange={setJoinTableAmount}
+              placeholder="0"
+              defaultValue={0}
+              prefix={<Text style={styles.currencyIcon}>{getCurrencySymbol(defaults.currency)}</Text>}
+              suffix="per player"
+            />
           </View>
         )}
 
@@ -402,20 +325,14 @@ const GameSetupScreen = ({ navigation }: any) => {
         {!useDefaults && variant === 'points' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>POINT VALUE</Text>
-            <View style={styles.card}>
-              <View style={styles.inputRow}>
-                <Text style={styles.currencyIcon}>{getCurrencySymbol(defaults.currency)}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={pointValue.toString()}
-                  onChangeText={text => setPointValue(parseInt(text, 10) || 1)}
-                  keyboardType="numeric"
-                  placeholder="1"
-                  placeholderTextColor={colors.placeholder}
-                />
-                <Text style={styles.inputSuffix}>per point</Text>
-              </View>
-            </View>
+            <NumberInputField
+              value={pointValue}
+              onChange={setPointValue}
+              placeholder="1"
+              defaultValue={1}
+              prefix={<Text style={styles.currencyIcon}>{getCurrencySymbol(defaults.currency)}</Text>}
+              suffix="per point"
+            />
           </View>
         )}
 
@@ -423,20 +340,14 @@ const GameSetupScreen = ({ navigation }: any) => {
         {!useDefaults && variant === 'deals' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>NUMBER OF DEALS</Text>
-            <View style={styles.card}>
-              <View style={styles.inputRow}>
-                <Icon name="number.circle.fill" size={IconSize.medium} color={colors.secondaryLabel} weight="medium" />
-                <TextInput
-                  style={styles.input}
-                  value={numberOfDeals.toString()}
-                  onChangeText={text => setNumberOfDeals(parseInt(text, 10) || 2)}
-                  keyboardType="numeric"
-                  placeholder="2"
-                  placeholderTextColor={colors.placeholder}
-                />
-                <Text style={styles.inputSuffix}>deals</Text>
-              </View>
-            </View>
+            <NumberInputField
+              value={numberOfDeals}
+              onChange={setNumberOfDeals}
+              placeholder="2"
+              defaultValue={2}
+              icon="number.circle.fill"
+              suffix="deals"
+            />
           </View>
         )}
 
@@ -554,23 +465,13 @@ const GameSetupScreen = ({ navigation }: any) => {
         )}
 
         {/* Start Button */}
-        <TouchableOpacity
-          style={[
-            styles.startButton,
-            validPlayerCount < 2 && styles.startButtonDisabled,
-          ]}
+        <PrimaryButton
+          label="Start Game"
+          icon="play.fill"
           onPress={startGame}
           disabled={validPlayerCount < 2}
-          accessibilityLabel="Start game"
-          accessibilityRole="button">
-          <Icon name="play.fill" size={IconSize.medium} color={validPlayerCount < 2 ? colors.tertiaryLabel : colors.label} weight="medium" />
-          <Text style={[
-            styles.startButtonText,
-            validPlayerCount < 2 && styles.startButtonTextDisabled,
-          ]}>
-            Start Game
-          </Text>
-        </TouchableOpacity>
+          style={styles.startButton}
+        />
 
         {validPlayerCount < 2 && (
           <Text style={styles.startHint}>Add at least 2 players to start</Text>
@@ -619,68 +520,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.cardBackground,
     borderRadius: BorderRadius.large,
     overflow: 'hidden',
-  },
-  segmentedCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: BorderRadius.large,
-    padding: Spacing.md,
-  },
-
-  // Segmented Control
-  segmentedControl: {
-    height: 36,
-  },
-  segmentedFont: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.label,
-  },
-  segmentedActiveFont: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.label,
-  },
-
-  // Variant Description
-  variantDescriptionContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.separator,
-    gap: Spacing.md,
-  },
-  variantDescription: {
-    ...Typography.footnote,
-    color: colors.secondaryLabel,
-    flex: 1,
-    lineHeight: 18,
-  },
-
-  // Custom Limit
-  customLimitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.separator,
-    gap: Spacing.sm,
-  },
-  customLimitLabel: {
-    ...Typography.footnote,
-    color: colors.secondaryLabel,
-  },
-  customLimitInput: {
-    flex: 1,
-    ...Typography.body,
-    color: colors.label,
-    backgroundColor: colors.background,
-    borderRadius: BorderRadius.small,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    textAlign: 'center',
   },
 
   // Toggle Row
@@ -850,24 +689,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // Start Button
   startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.tint,
-    borderRadius: BorderRadius.large,
-    padding: Spacing.lg,
-    gap: Spacing.sm,
     marginTop: Spacing.md,
-  },
-  startButtonDisabled: {
-    backgroundColor: colors.cardBackground,
-  },
-  startButtonText: {
-    ...Typography.headline,
-    color: colors.label,
-  },
-  startButtonTextDisabled: {
-    color: colors.tertiaryLabel,
   },
   startHint: {
     ...Typography.caption1,
