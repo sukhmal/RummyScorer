@@ -9,6 +9,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { GameVariant } from '../../types/shared';
 import { ThemeColors, Typography, Spacing, BorderRadius, IconSize } from '../../theme';
+import { getGameTypeLabel } from '../../utils/formatters';
 import Icon from '../Icon';
 
 export interface GameInfoBadgesProps {
@@ -32,14 +33,6 @@ const getVariantIcon = (variant: GameVariant): string => {
   }
 };
 
-const getGameTypeLabel = (variant: GameVariant, poolLimit?: number, numberOfDeals?: number): string => {
-  if (variant === 'pool') {
-    return `Pool ${poolLimit || 101}`;
-  } else if (variant === 'deals') {
-    return `${numberOfDeals || 2} Deals`;
-  }
-  return 'Points';
-};
 
 export const GameInfoBadges: React.FC<GameInfoBadgesProps> = ({
   gameName,

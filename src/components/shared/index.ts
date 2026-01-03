@@ -26,3 +26,7 @@ export type { GameInfoBadgesProps } from './GameInfoBadges';
 
 export { Leaderboard } from './Leaderboard';
 export type { LeaderboardProps, LeaderboardPlayer } from './Leaderboard';
+
+// Action components
+export { PrimaryButton } from './PrimaryButton';
+export type { PrimaryButtonProps } from './PrimaryButton';
