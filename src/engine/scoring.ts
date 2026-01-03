@@ -12,18 +12,19 @@ import {
 } from './types';
 import { calculateDeadwoodPoints } from './hand';
 import { autoArrangeHand } from './declaration';
+import {
+  MAX_ROUND_POINTS,
+  DEFAULT_FIRST_DROP,
+  DEFAULT_MIDDLE_DROP,
+} from '../types/shared';
+
+// Re-export for backward compatibility
+export { MAX_ROUND_POINTS, DEFAULT_FIRST_DROP, DEFAULT_MIDDLE_DROP };
 
 /**
- * Maximum points a player can get in a single round
+ * Default invalid declaration penalty (same as MAX_ROUND_POINTS)
  */
-export const MAX_ROUND_POINTS = 80;
-
-/**
- * Default penalties
- */
-export const DEFAULT_FIRST_DROP = 25;
-export const DEFAULT_MIDDLE_DROP = 50;
-export const DEFAULT_INVALID_DECLARATION = 80;
+export const DEFAULT_INVALID_DECLARATION = MAX_ROUND_POINTS;
 
 /**
  * Calculate points for a player's hand at end of round

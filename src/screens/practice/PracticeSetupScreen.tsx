@@ -19,8 +19,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { usePracticeGame } from '../../context/PracticeGameContext';
+import { useSettings } from '../../context/SettingsContext';
 import { BotDifficulty, PracticeVariant, PracticeGameConfig } from '../../engine/types';
-import { DEFAULT_FIRST_DROP, DEFAULT_MIDDLE_DROP, DEFAULT_INVALID_DECLARATION } from '../../engine/scoring';
+import { DEFAULT_INVALID_DECLARATION } from '../../engine/scoring';
 import { ThemeColors, Typography, Spacing, BorderRadius, IconSize } from '../../theme';
 import Icon from '../../components/Icon';
 
@@ -42,15 +43,16 @@ const PracticeSetupScreen = () => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const { createGame } = usePracticeGame();
+  const { defaults } = useSettings();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  // Form state
+  // Form state - use settings defaults
   const [playerName, setPlayerName] = useState('You');
   const [botCount, setBotCount] = useState(3);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('medium');
-  const [variant, setVariant] = useState<PracticeVariant>('points');
-  const [poolLimit, setPoolLimit] = useState(201);
-  const [numberOfDeals, setNumberOfDeals] = useState(3);
+  const [variant, setVariant] = useState<PracticeVariant>(defaults.gameType);
+  const [poolLimit, setPoolLimit] = useState(defaults.poolLimit);
+  const [numberOfDeals, setNumberOfDeals] = useState(defaults.numberOfDeals);
   const [showDifficultyInfo, setShowDifficultyInfo] = useState(false);
 
   const handleStartGame = useCallback(async () => {
@@ -58,14 +60,14 @@ const PracticeSetupScreen = () => {
       variant,
       poolLimit: variant === 'pool' ? poolLimit : undefined,
       numberOfDeals: variant === 'deals' ? numberOfDeals : undefined,
-      firstDropPenalty: DEFAULT_FIRST_DROP,
-      middleDropPenalty: DEFAULT_MIDDLE_DROP,
+      firstDropPenalty: defaults.firstDropPenalty,
+      middleDropPenalty: defaults.middleDropPenalty,
       invalidDeclarationPenalty: DEFAULT_INVALID_DECLARATION,
     };
 
     await createGame(playerName.trim() || 'You', botCount, difficulty, config);
     navigation.replace('PracticeGame');
-  }, [playerName, botCount, difficulty, variant, poolLimit, numberOfDeals, createGame, navigation]);
+  }, [playerName, botCount, difficulty, variant, poolLimit, numberOfDeals, defaults, createGame, navigation]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
