@@ -18,7 +18,7 @@ import { useSettings, getCurrencySymbol } from '../context/SettingsContext';
 import { GameVariant, GameConfig, Player, PoolType } from '../types/game';
 import Icon from '../components/Icon';
 import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
-import { VariantSelector, PoolLimitSelector } from '../components/shared';
+import { VariantSelector, PoolLimitSelector, NumberInputField } from '../components/shared';
 
 const PRESET_POOL_LIMITS = [101, 201, 250] as const;
 
@@ -310,20 +310,14 @@ const GameSetupScreen = ({ navigation }: any) => {
         {!useDefaults && variant === 'pool' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>JOIN TABLE AMOUNT</Text>
-            <View style={styles.card}>
-              <View style={styles.inputRow}>
-                <Text style={styles.currencyIcon}>{getCurrencySymbol(defaults.currency)}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={joinTableAmount.toString()}
-                  onChangeText={text => setJoinTableAmount(parseInt(text, 10) || 0)}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={colors.placeholder}
-                />
-                <Text style={styles.inputSuffix}>per player</Text>
-              </View>
-            </View>
+            <NumberInputField
+              value={joinTableAmount}
+              onChange={setJoinTableAmount}
+              placeholder="0"
+              defaultValue={0}
+              prefix={<Text style={styles.currencyIcon}>{getCurrencySymbol(defaults.currency)}</Text>}
+              suffix="per player"
+            />
           </View>
         )}
 
@@ -331,20 +325,14 @@ const GameSetupScreen = ({ navigation }: any) => {
         {!useDefaults && variant === 'points' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>POINT VALUE</Text>
-            <View style={styles.card}>
-              <View style={styles.inputRow}>
-                <Text style={styles.currencyIcon}>{getCurrencySymbol(defaults.currency)}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={pointValue.toString()}
-                  onChangeText={text => setPointValue(parseInt(text, 10) || 1)}
-                  keyboardType="numeric"
-                  placeholder="1"
-                  placeholderTextColor={colors.placeholder}
-                />
-                <Text style={styles.inputSuffix}>per point</Text>
-              </View>
-            </View>
+            <NumberInputField
+              value={pointValue}
+              onChange={setPointValue}
+              placeholder="1"
+              defaultValue={1}
+              prefix={<Text style={styles.currencyIcon}>{getCurrencySymbol(defaults.currency)}</Text>}
+              suffix="per point"
+            />
           </View>
         )}
 
@@ -352,20 +340,14 @@ const GameSetupScreen = ({ navigation }: any) => {
         {!useDefaults && variant === 'deals' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>NUMBER OF DEALS</Text>
-            <View style={styles.card}>
-              <View style={styles.inputRow}>
-                <Icon name="number.circle.fill" size={IconSize.medium} color={colors.secondaryLabel} weight="medium" />
-                <TextInput
-                  style={styles.input}
-                  value={numberOfDeals.toString()}
-                  onChangeText={text => setNumberOfDeals(parseInt(text, 10) || 2)}
-                  keyboardType="numeric"
-                  placeholder="2"
-                  placeholderTextColor={colors.placeholder}
-                />
-                <Text style={styles.inputSuffix}>deals</Text>
-              </View>
-            </View>
+            <NumberInputField
+              value={numberOfDeals}
+              onChange={setNumberOfDeals}
+              placeholder="2"
+              defaultValue={2}
+              icon="number.circle.fill"
+              suffix="deals"
+            />
           </View>
         )}
 

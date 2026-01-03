@@ -14,7 +14,7 @@ import { useGame } from '../context/GameContext';
 import { useTheme } from '../context/ThemeContext';
 import Icon from '../components/Icon';
 import EditRoundModal from '../components/EditRoundModal';
-import { WinnerBanner, GameInfoBadges } from '../components/shared';
+import { WinnerBanner, GameInfoBadges, Leaderboard, LeaderboardPlayer } from '../components/shared';
 import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
 import { Round } from '../types/game';
 
@@ -193,72 +193,19 @@ const HistoryScreen = ({ navigation, route }: any) => {
               />
             </TouchableOpacity>
           </View>
-          <View style={styles.card}>
-            {/* Table Header */}
-            <View style={styles.tableHeader}>
-              <Text style={[styles.headerCell, styles.rankColumn]}>#</Text>
-              <Text style={[styles.headerCell, styles.nameColumn]}>Player</Text>
-              <Text style={[styles.headerCell, styles.scoreColumn]}>Score</Text>
-              <Text style={[styles.headerCell, styles.winsColumn]}>Wins</Text>
-            </View>
-
-            {/* Player Rows */}
-            {leaderboardPlayers.map((player, index) => {
-              const isLast = index === leaderboardPlayers.length - 1;
-              const isWinner = player.id === displayGame.winner;
-              return (
-                <View
-                  key={player.id}
-                  style={[
-                    styles.leaderboardRow,
-                    !isLast && styles.leaderboardRowBorder,
-                    player.isEliminated && styles.eliminatedRow,
-                  ]}>
-                  <View style={[styles.rankColumn, styles.rankContainer]}>
-                    {sortByScore && index === 0 && !player.isEliminated ? (
-                      <View style={styles.rankBadgeGold}>
-                        <Text style={styles.rankBadgeText}>1</Text>
-                      </View>
-                    ) : sortByScore && index === 1 && !player.isEliminated ? (
-                      <View style={styles.rankBadgeSilver}>
-                        <Text style={styles.rankBadgeText}>{index + 1}</Text>
-                      </View>
-                    ) : sortByScore && index === 2 && !player.isEliminated ? (
-                      <View style={styles.rankBadgeBronze}>
-                        <Text style={styles.rankBadgeText}>{index + 1}</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.rankText}>{index + 1}</Text>
-                    )}
-                  </View>
-                  <View style={styles.nameColumn}>
-                    <Text
-                      style={[
-                        styles.playerName,
-                        player.isEliminated && styles.eliminatedText,
-                        isWinner && styles.winnerTextStyle,
-                      ]}
-                      numberOfLines={1}>
-                      {player.name}
-                    </Text>
-                    {player.isEliminated && (
-                      <Text style={styles.eliminatedLabel}>Eliminated</Text>
-                    )}
-                  </View>
-                  <View style={styles.scoreColumn}>
-                    <Text style={[styles.scoreText, player.isEliminated && styles.eliminatedText]}>
-                      {player.score}
-                    </Text>
-                  </View>
-                  <View style={styles.winsColumn}>
-                    <View style={styles.winsBadge}>
-                      <Text style={styles.winsText}>{getPlayerWins(player.id)}</Text>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+          <Leaderboard
+            players={leaderboardPlayers.map((player): LeaderboardPlayer => ({
+              id: player.id,
+              name: player.name,
+              score: player.score,
+              wins: getPlayerWins(player.id),
+              isWinner: player.id === displayGame.winner,
+              isEliminated: player.isEliminated,
+            }))}
+            showRanks={sortByScore}
+            showWins={true}
+            winnerId={displayGame.winner || undefined}
+          />
         </View>
 
         {/* Round History */}
@@ -435,138 +382,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   legendText: {
     ...Typography.caption1,
     color: colors.secondaryLabel,
-  },
-
-  // Card Styles
-  card: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: BorderRadius.large,
-    overflow: 'hidden',
-  },
-
-  // Table Header
-  tableHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.separator,
-    backgroundColor: colors.background,
-  },
-  headerCell: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.tertiaryLabel,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  // Column Definitions
-  rankColumn: {
-    width: 44,
-    alignItems: 'center',
-  },
-  rankContainer: {
-    justifyContent: 'center',
-  },
-  nameColumn: {
-    flex: 2,
-  },
-  scoreColumn: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  winsColumn: {
-    flex: 0.8,
-    alignItems: 'center',
-  },
-
-  // Leaderboard Row
-  leaderboardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    minHeight: TapTargets.minimum,
-  },
-  leaderboardRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.separator,
-  },
-  eliminatedRow: {
-    opacity: 0.5,
-  },
-
-  // Rank Badges
-  rankBadgeGold: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.gold,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rankBadgeSilver: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#C0C0C0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rankBadgeBronze: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#CD7F32',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rankBadgeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#000',
-  },
-  rankText: {
-    ...Typography.body,
-    fontWeight: '600',
-    color: colors.secondaryLabel,
-  },
-
-  // Player Info
-  playerName: {
-    ...Typography.body,
-    fontWeight: '500',
-    color: colors.label,
-  },
-  winnerTextStyle: {
-    color: colors.success,
-    fontWeight: '600',
-  },
-  eliminatedText: {
-    textDecorationLine: 'line-through',
-    color: colors.tertiaryLabel,
-  },
-  eliminatedLabel: {
-    ...Typography.caption2,
-    color: colors.destructive,
-    marginTop: 2,
-  },
-  scoreText: {
-    ...Typography.headline,
-    color: colors.label,
-  },
-  winsBadge: {
-    backgroundColor: colors.accent + '30',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.small,
-  },
-  winsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.accent,
   },
 
   // Round History

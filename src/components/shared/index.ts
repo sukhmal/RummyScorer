@@ -14,9 +14,15 @@ export type { PoolLimitSelectorProps } from './PoolLimitSelector';
 export { NumberSelector } from './NumberSelector';
 export type { NumberSelectorProps } from './NumberSelector';
 
+export { NumberInputField } from './NumberInputField';
+export type { NumberInputFieldProps } from './NumberInputField';
+
 // History components
 export { WinnerBanner } from './WinnerBanner';
 export type { WinnerBannerProps } from './WinnerBanner';
 
 export { GameInfoBadges } from './GameInfoBadges';
 export type { GameInfoBadgesProps } from './GameInfoBadges';
+
+export { Leaderboard } from './Leaderboard';
+export type { LeaderboardProps, LeaderboardPlayer } from './Leaderboard';
