@@ -8,7 +8,7 @@ import {
   PracticePlayer,
   RoundResult,
   PracticeVariant,
-  POOL_LIMITS,
+  DEFAULT_POOL_LIMIT,
 } from './types';
 import { calculateDeadwoodPoints } from './hand';
 import { autoArrangeHand } from './declaration';
@@ -53,7 +53,7 @@ export const calculateInvalidDeclarationPoints = (
   hand: Card[],
   variant: PracticeVariant
 ): number => {
-  if (variant.startsWith('pool')) {
+  if (variant === 'pool') {
     // Pool rummy: fixed 80 points for invalid declaration
     return MAX_ROUND_POINTS;
   }
@@ -100,7 +100,7 @@ export const calculateRoundScores = (
         scores[playerId] = 0;
       } else if (declarationType === 'invalid') {
         // Invalid declaration - player gets penalty
-        scores[playerId] = variant.startsWith('pool')
+        scores[playerId] = variant === 'pool'
           ? invalidDeclarationPenalty
           : calculateDeadwoodPoints(hands[playerId]);
       } else if (declarationType === 'drop-first') {
@@ -138,11 +138,11 @@ export const updateCumulativeScores = (
  */
 export const isPlayerEliminated = (
   score: number,
-  variant: PracticeVariant
+  variant: PracticeVariant,
+  poolLimit?: number
 ): boolean => {
-  const limit = POOL_LIMITS[variant];
-  if (!limit) return false;
-
+  if (variant !== 'pool') return false;
+  const limit = poolLimit || DEFAULT_POOL_LIMIT;
   return score > limit;
 };
 
@@ -152,13 +152,14 @@ export const isPlayerEliminated = (
 export const getActivePlayers = (
   players: PracticePlayer[],
   scores: { [playerId: string]: number },
-  variant: PracticeVariant
+  variant: PracticeVariant,
+  poolLimit?: number
 ): PracticePlayer[] => {
-  if (!variant.startsWith('pool')) {
+  if (variant !== 'pool') {
     return players;
   }
 
-  return players.filter(p => !isPlayerEliminated(scores[p.id] || 0, variant));
+  return players.filter(p => !isPlayerEliminated(scores[p.id] || 0, variant, poolLimit));
 };
 
 /**
@@ -169,11 +170,12 @@ export const shouldGameEnd = (
   scores: { [playerId: string]: number },
   roundResults: RoundResult[],
   variant: PracticeVariant,
-  numberOfDeals?: number
+  numberOfDeals?: number,
+  poolLimit?: number
 ): boolean => {
-  if (variant.startsWith('pool')) {
+  if (variant === 'pool') {
     // Pool rummy: game ends when only 1 player remains
-    const activePlayers = getActivePlayers(players, scores, variant);
+    const activePlayers = getActivePlayers(players, scores, variant, poolLimit);
     return activePlayers.length <= 1;
   }
 
@@ -196,11 +198,12 @@ export const shouldGameEnd = (
 export const determineGameWinner = (
   players: PracticePlayer[],
   scores: { [playerId: string]: number },
-  variant: PracticeVariant
+  variant: PracticeVariant,
+  poolLimit?: number
 ): PracticePlayer | null => {
-  if (variant.startsWith('pool')) {
+  if (variant === 'pool') {
     // Pool rummy: last remaining player wins
-    const activePlayers = getActivePlayers(players, scores, variant);
+    const activePlayers = getActivePlayers(players, scores, variant, poolLimit);
     return activePlayers.length === 1 ? activePlayers[0] : null;
   }
 
@@ -255,16 +258,17 @@ export const formatScore = (score: number): string => {
 export const getPlayerRanks = (
   players: PracticePlayer[],
   scores: { [playerId: string]: number },
-  variant: PracticeVariant
+  variant: PracticeVariant,
+  poolLimit?: number
 ): { playerId: string; rank: number; score: number }[] => {
   const sortedPlayers = [...players].sort((a, b) => {
     const scoreA = scores[a.id] || 0;
     const scoreB = scores[b.id] || 0;
 
-    if (variant.startsWith('pool')) {
+    if (variant === 'pool') {
       // In pool, lower is better (not eliminated)
-      const eliminatedA = isPlayerEliminated(scoreA, variant);
-      const eliminatedB = isPlayerEliminated(scoreB, variant);
+      const eliminatedA = isPlayerEliminated(scoreA, variant, poolLimit);
+      const eliminatedB = isPlayerEliminated(scoreB, variant, poolLimit);
 
       if (eliminatedA && !eliminatedB) return 1;
       if (!eliminatedA && eliminatedB) return -1;
@@ -288,31 +292,33 @@ export const canRejoin = (
   playerId: string,
   gameState: PracticeGameState
 ): boolean => {
-  if (!gameState.config.variant.startsWith('pool')) {
+  if (gameState.config.variant !== 'pool') {
     return false;
   }
 
   const player = gameState.players.find(p => p.id === playerId);
   if (!player) return false;
 
+  const poolLimit = gameState.config.poolLimit || DEFAULT_POOL_LIMIT;
+
   // Check if player is eliminated
-  if (!isPlayerEliminated(gameState.scores[playerId] || 0, gameState.config.variant)) {
+  if (!isPlayerEliminated(gameState.scores[playerId] || 0, gameState.config.variant, poolLimit)) {
     return false; // Not eliminated, can't rejoin
   }
 
   // Check if any active player is in compulsory play
-  const limit = POOL_LIMITS[gameState.config.variant] || 250;
   const firstDropPenalty = gameState.config.firstDropPenalty;
 
   const activePlayers = getActivePlayers(
     gameState.players,
     gameState.scores,
-    gameState.config.variant
+    gameState.config.variant,
+    poolLimit
   );
 
   const someoneInCompulsory = activePlayers.some(p => {
     const score = gameState.scores[p.id] || 0;
-    const remainingSpace = limit - score;
+    const remainingSpace = poolLimit - score;
     return remainingSpace < firstDropPenalty;
   });
 
@@ -325,10 +331,13 @@ export const canRejoin = (
 export const calculateRejoinScore = (
   gameState: PracticeGameState
 ): number => {
+  const poolLimit = gameState.config.poolLimit || DEFAULT_POOL_LIMIT;
+
   const activePlayers = getActivePlayers(
     gameState.players,
     gameState.scores,
-    gameState.config.variant
+    gameState.config.variant,
+    poolLimit
   );
 
   if (activePlayers.length === 0) {

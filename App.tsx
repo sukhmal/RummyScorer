@@ -1,5 +1,6 @@
 import React from 'react';
 import { StatusBar, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -155,8 +156,7 @@ const AppNavigator = () => {
           name="PracticeGame"
           component={PracticeGameScreen}
           options={{
-            title: 'Practice',
-            headerLeft: HomeButton,
+            headerShown: false,
           }}
         />
         <Stack.Screen
@@ -172,21 +172,29 @@ const AppNavigator = () => {
   );
 };
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
+
 function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <SettingsProvider>
-          <GameProvider>
-            <PracticeGameProvider>
-              <NavigationContainer>
-                <AppNavigator />
-              </NavigationContainer>
-            </PracticeGameProvider>
-          </GameProvider>
-        </SettingsProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.container}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <SettingsProvider>
+            <GameProvider>
+              <PracticeGameProvider>
+                <NavigationContainer>
+                  <AppNavigator />
+                </NavigationContainer>
+              </PracticeGameProvider>
+            </GameProvider>
+          </SettingsProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

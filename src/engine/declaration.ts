@@ -100,11 +100,25 @@ export const validateDeclaration = (
  * Returns the best possible arrangement of the hand
  */
 export const autoArrangeHand = (cards: Card[]): HandAnalysis => {
+  // Handle empty or invalid input
+  if (!cards || cards.length === 0) {
+    return {
+      melds: [],
+      deadwood: [],
+      deadwoodPoints: 0,
+      hasPureSequence: false,
+      sequenceCount: 0,
+      canDeclare: false,
+    };
+  }
+
   // This is a complex optimization problem
   // We use a greedy approach with backtracking
 
-  const jokers = cards.filter(c => isJoker(c));
-  const nonJokers = cards.filter(c => !isJoker(c));
+  // Filter out any undefined cards
+  const validCards = cards.filter(c => c && c.id);
+  const jokers = validCards.filter(c => isJoker(c));
+  const nonJokers = validCards.filter(c => !isJoker(c));
 
   // Find all possible pure sequences first (they're required)
   const pureSequences = findAllPureSequences(nonJokers);
@@ -112,8 +126,8 @@ export const autoArrangeHand = (cards: Card[]): HandAnalysis => {
   // Try different combinations
   let bestResult: HandAnalysis = {
     melds: [],
-    deadwood: [...cards],
-    deadwoodPoints: calculateDeadwoodPoints(cards),
+    deadwood: [...validCards],
+    deadwoodPoints: calculateDeadwoodPoints(validCards),
     hasPureSequence: false,
     sequenceCount: 0,
     canDeclare: false,
@@ -145,9 +159,12 @@ export const autoArrangeHand = (cards: Card[]): HandAnalysis => {
  * Find all possible pure sequences in the cards
  */
 const findAllPureSequences = (cards: Card[]): Card[][] => {
+  if (!cards || cards.length === 0) return [];
+
   const bySuit: { [suit: string]: Card[] } = {};
 
   for (const card of cards) {
+    if (!card || !card.suit) continue;
     if (!bySuit[card.suit]) {
       bySuit[card.suit] = [];
     }
@@ -158,8 +175,9 @@ const findAllPureSequences = (cards: Card[]): Card[][] => {
 
   for (const suit of Object.keys(bySuit)) {
     const suitCards = bySuit[suit].sort((a, b) => {
-      const aIdx = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'].indexOf(a.rank);
-      const bIdx = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'].indexOf(b.rank);
+      const rankOrder = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+      const aIdx = a?.rank ? rankOrder.indexOf(a.rank) : -1;
+      const bIdx = b?.rank ? rankOrder.indexOf(b.rank) : -1;
       return aIdx - bIdx;
     });
 
@@ -174,24 +192,28 @@ const findAllPureSequences = (cards: Card[]): Card[][] => {
  * Find consecutive runs in sorted cards
  */
 const findConsecutiveRuns = (sorted: Card[], result: Card[][]): void => {
-  if (sorted.length < 3) return;
+  if (!sorted || sorted.length < 3) return;
 
   const rankOrder = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
-  let currentRun: Card[] = [sorted[0]];
+  // Filter out any null/undefined cards
+  const validSorted = sorted.filter(c => c && c.rank);
+  if (validSorted.length < 3) return;
 
-  for (let i = 1; i < sorted.length; i++) {
-    const prevIdx = rankOrder.indexOf(sorted[i - 1].rank);
-    const currIdx = rankOrder.indexOf(sorted[i].rank);
+  let currentRun: Card[] = [validSorted[0]];
+
+  for (let i = 1; i < validSorted.length; i++) {
+    const prevIdx = rankOrder.indexOf(validSorted[i - 1].rank);
+    const currIdx = rankOrder.indexOf(validSorted[i].rank);
 
     if (currIdx === prevIdx + 1) {
-      currentRun.push(sorted[i]);
+      currentRun.push(validSorted[i]);
     } else {
       if (currentRun.length >= 3) {
         // Add all valid subsequences of length 3+
         addAllSubsequences(currentRun, result);
       }
-      currentRun = [sorted[i]];
+      currentRun = [validSorted[i]];
     }
   }
 
@@ -200,9 +222,9 @@ const findConsecutiveRuns = (sorted: Card[], result: Card[][]): void => {
   }
 
   // Check for A-2-3 sequence
-  const ace = sorted.find(c => c.rank === 'A');
-  const two = sorted.find(c => c.rank === '2');
-  const three = sorted.find(c => c.rank === '3');
+  const ace = validSorted.find(c => c.rank === 'A');
+  const two = validSorted.find(c => c.rank === '2');
+  const three = validSorted.find(c => c.rank === '3');
   if (ace && two && three) {
     result.push([ace, two, three]);
   }
@@ -302,9 +324,12 @@ const findBestArrangement = (
  * Find sets in cards
  */
 const findSets = (cards: Card[]): Card[][] => {
+  if (!cards || cards.length === 0) return [];
+
   const byRank: { [rank: string]: Card[] } = {};
 
   for (const card of cards) {
+    if (!card || !card.rank) continue;
     if (!byRank[card.rank]) {
       byRank[card.rank] = [];
     }
@@ -338,14 +363,18 @@ const applyJokersToComplete = (
   cards: Card[],
   jokers: Card[]
 ): { newMelds: Meld[]; leftover: Card[]; usedJokers: Card[] } => {
+  if (!cards) cards = [];
+  if (!jokers) jokers = [];
+
   const newMelds: Meld[] = [];
-  let leftover = [...cards];
+  let leftover = [...cards].filter(c => c && c.id);
   let usedJokers: Card[] = [];
-  let availableJokers = [...jokers];
+  let availableJokers = [...jokers].filter(c => c && c.id);
 
   // Find pairs that can become sets with jokers
   const byRank: { [rank: string]: Card[] } = {};
   for (const card of leftover) {
+    if (!card || !card.rank) continue;
     if (!byRank[card.rank]) {
       byRank[card.rank] = [];
     }
@@ -377,6 +406,7 @@ const applyJokersToComplete = (
   // Find pairs of consecutive cards that can become sequences with jokers
   const bySuit: { [suit: string]: Card[] } = {};
   for (const card of leftover) {
+    if (!card || !card.suit) continue;
     if (!bySuit[card.suit]) {
       bySuit[card.suit] = [];
     }
@@ -429,20 +459,27 @@ export const canDeclare = (cards: Card[]): boolean => {
  * Get a hint about what's needed for a valid declaration
  */
 export const getDeclarationHint = (cards: Card[]): string[] => {
-  const analysis = autoArrangeHand(cards);
-  const hints: string[] = [];
+  if (!cards || cards.length === 0) return [];
 
-  if (!analysis.hasPureSequence) {
-    hints.push('You need at least one pure sequence (no jokers)');
+  try {
+    const analysis = autoArrangeHand(cards);
+    const hints: string[] = [];
+
+    if (!analysis.hasPureSequence) {
+      hints.push('You need at least one pure sequence (no jokers)');
+    }
+
+    if (analysis.sequenceCount < 2) {
+      hints.push(`You need at least 2 sequences (you have ${analysis.sequenceCount})`);
+    }
+
+    if (analysis.deadwood.length > 0) {
+      hints.push(`You have ${analysis.deadwood.length} unmelded cards worth ${analysis.deadwoodPoints} points`);
+    }
+
+    return hints;
+  } catch (error) {
+    console.error('Error in getDeclarationHint:', error);
+    return [];
   }
-
-  if (analysis.sequenceCount < 2) {
-    hints.push(`You need at least 2 sequences (you have ${analysis.sequenceCount})`);
-  }
-
-  if (analysis.deadwood.length > 0) {
-    hints.push(`You have ${analysis.deadwood.length} unmelded cards worth ${analysis.deadwoodPoints} points`);
-  }
-
-  return hints;
 };

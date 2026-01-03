@@ -24,6 +24,7 @@ interface CardProps {
   isDisabled?: boolean;
   size?: 'small' | 'medium' | 'large';
   onPress?: (card: CardType) => void;
+  onLongPress?: (card: CardType) => void;
   style?: ViewStyle;
 }
 
@@ -41,6 +42,7 @@ const Card: React.FC<CardProps> = ({
   isDisabled = false,
   size = 'medium',
   onPress,
+  onLongPress,
   style,
 }) => {
   const { colors } = useTheme();
@@ -53,6 +55,12 @@ const Card: React.FC<CardProps> = ({
   const handlePress = () => {
     if (!isDisabled && onPress) {
       onPress(card);
+    }
+  };
+
+  const handleLongPress = () => {
+    if (onLongPress) {
+      onLongPress(card);
     }
   };
 
@@ -78,16 +86,25 @@ const Card: React.FC<CardProps> = ({
     const symbol = SUIT_SYMBOLS[card.suit];
 
     return (
-      <View style={styles.cardContent}>
-        <View style={styles.cardCorner}>
+      <View style={styles.cardFace}>
+        {/* Top-left corner */}
+        <View style={styles.topLeftCorner}>
           <Text style={[styles.rankText, { color: textColor }]}>{card.rank}</Text>
-          <Text style={[styles.suitText, { color: textColor }]}>{symbol}</Text>
+          <Text style={[styles.smallSuit, { color: textColor }]}>{symbol}</Text>
         </View>
-        <Text style={[styles.centerSuit, { color: textColor }]}>{symbol}</Text>
-        <View style={[styles.cardCorner, styles.bottomCorner]}>
+
+        {/* Center suit */}
+        <View style={styles.centerContainer}>
+          <Text style={[styles.centerSuit, { color: textColor }]}>{symbol}</Text>
+        </View>
+
+        {/* Bottom-right corner (upside down) */}
+        <View style={styles.bottomRightCorner}>
+          <Text style={[styles.smallSuit, { color: textColor }]}>{symbol}</Text>
           <Text style={[styles.rankText, { color: textColor }]}>{card.rank}</Text>
-          <Text style={[styles.suitText, { color: textColor }]}>{symbol}</Text>
         </View>
+
+        {/* Wild joker badge */}
         {isWildJoker && (
           <View style={styles.wildBadge}>
             <Text style={styles.wildBadgeText}>W</Text>
@@ -106,7 +123,9 @@ const Card: React.FC<CardProps> = ({
         style,
       ]}
       onPress={handlePress}
-      disabled={isDisabled || !onPress}
+      onLongPress={handleLongPress}
+      delayLongPress={300}
+      disabled={isDisabled || (!onPress && !onLongPress)}
       activeOpacity={0.8}
       accessibilityLabel={
         isFaceDown
@@ -135,20 +154,19 @@ const createStyles = (colors: ThemeColors, size: 'small' | 'medium' | 'large') =
       backgroundColor: '#FFFFFF',
       borderRadius: BorderRadius.small,
       borderWidth: 1,
-      borderColor: colors.separator,
+      borderColor: '#DDD',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
+      shadowOpacity: 0.15,
       shadowRadius: 3,
-      elevation: 2,
-      overflow: 'hidden',
+      elevation: 3,
     },
     selectedCard: {
       borderColor: colors.accent,
       borderWidth: 2,
       transform: [{ translateY: -8 }],
-      shadowOpacity: 0.25,
-      shadowRadius: 5,
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
     },
     disabledCard: {
       opacity: 0.5,
@@ -158,47 +176,51 @@ const createStyles = (colors: ThemeColors, size: 'small' | 'medium' | 'large') =
       backgroundColor: '#1a237e',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 4,
+      padding: 3,
+      borderRadius: BorderRadius.small - 1,
     },
     cardBackPattern: {
       flex: 1,
       width: '100%',
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-      borderRadius: 4,
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      borderRadius: 3,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.2)',
+      borderColor: 'rgba(255, 255, 255, 0.15)',
     },
-    cardContent: {
+    cardFace: {
       flex: 1,
-      padding: 4,
+      position: 'relative',
     },
-    cardCorner: {
+    topLeftCorner: {
+      position: 'absolute',
+      top: 3,
+      left: 4,
       alignItems: 'center',
     },
-    bottomCorner: {
+    bottomRightCorner: {
       position: 'absolute',
-      bottom: 4,
+      bottom: 3,
       right: 4,
+      alignItems: 'center',
       transform: [{ rotate: '180deg' }],
     },
     rankText: {
-      fontSize: 14 * sizeMultiplier,
-      fontWeight: '700',
-      lineHeight: 16 * sizeMultiplier,
-    },
-    suitText: {
       fontSize: 12 * sizeMultiplier,
+      fontWeight: '700',
       lineHeight: 14 * sizeMultiplier,
     },
+    smallSuit: {
+      fontSize: 10 * sizeMultiplier,
+      lineHeight: 12 * sizeMultiplier,
+      marginTop: -2,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     centerSuit: {
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: [
-        { translateX: -12 * sizeMultiplier },
-        { translateY: -12 * sizeMultiplier },
-      ],
-      fontSize: 24 * sizeMultiplier,
+      fontSize: 28 * sizeMultiplier,
     },
     jokerContent: {
       flex: 1,
@@ -206,27 +228,28 @@ const createStyles = (colors: ThemeColors, size: 'small' | 'medium' | 'large') =
       alignItems: 'center',
     },
     jokerText: {
-      fontSize: 24 * sizeMultiplier,
+      fontSize: 22 * sizeMultiplier,
       fontWeight: '700',
     },
     jokerLabel: {
-      fontSize: 8 * sizeMultiplier,
+      fontSize: 7 * sizeMultiplier,
       fontWeight: '600',
       letterSpacing: 1,
+      marginTop: 2,
     },
     wildBadge: {
       position: 'absolute',
       top: 2,
       right: 2,
-      width: 16 * sizeMultiplier,
-      height: 16 * sizeMultiplier,
-      borderRadius: 8 * sizeMultiplier,
+      width: 14 * sizeMultiplier,
+      height: 14 * sizeMultiplier,
+      borderRadius: 7 * sizeMultiplier,
       backgroundColor: colors.warning,
       justifyContent: 'center',
       alignItems: 'center',
     },
     wildBadgeText: {
-      fontSize: 10 * sizeMultiplier,
+      fontSize: 8 * sizeMultiplier,
       fontWeight: '700',
       color: '#000',
     },

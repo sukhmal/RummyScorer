@@ -4,7 +4,7 @@
  * Shows game results, round history, and final scores.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Orientation from 'react-native-orientation-locker';
 import { useTheme } from '../../context/ThemeContext';
 import { usePracticeGame } from '../../context/PracticeGameContext';
 import { ThemeColors, Typography, Spacing, BorderRadius, IconSize } from '../../theme';
@@ -25,12 +26,22 @@ const PracticeHistoryScreen = () => {
   const { gameState, resetGame } = usePracticeGame();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  // Keep landscape orientation, unlock when leaving
+  useEffect(() => {
+    Orientation.lockToLandscape();
+    return () => {
+      Orientation.unlockAllOrientations();
+    };
+  }, []);
+
   const handlePlayAgain = async () => {
+    Orientation.unlockAllOrientations();
     await resetGame();
     navigation.replace('PracticeSetup');
   };
 
   const handleGoHome = async () => {
+    Orientation.unlockAllOrientations();
     await resetGame();
     navigation.navigate('Home');
   };

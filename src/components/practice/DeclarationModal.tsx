@@ -19,13 +19,18 @@ import { BlurView } from '@react-native-community/blur';
 import { useTheme } from '../../context/ThemeContext';
 import { Card as CardType, Meld } from '../../engine/types';
 import { autoArrangeHand, validateDeclaration, getDeclarationHint } from '../../engine/declaration';
+import { createMeld } from '../../engine/meld';
+
+interface CardWithGroup extends CardType {
+  groupIndex?: number;
+}
 import { ThemeColors, Spacing, BorderRadius, Typography, IconSize } from '../../theme';
 import Icon from '../Icon';
 import Card from './Card';
 
 interface DeclarationModalProps {
   visible: boolean;
-  cards: CardType[];
+  cards: CardWithGroup[];
   onDeclare: (melds: Meld[]) => void;
   onCancel: () => void;
 }
@@ -41,35 +46,169 @@ const DeclarationModal: React.FC<DeclarationModalProps> = ({
 
   const [melds, setMelds] = useState<Meld[]>([]);
   const [deadwood, setDeadwood] = useState<CardType[]>([]);
+  const [closingCard, setClosingCard] = useState<CardType | null>(null);
   const [selectedMeldIndex, setSelectedMeldIndex] = useState<number | null>(null);
 
-  // Auto-arrange cards when modal opens
+  // Helper to format card for logging
+  const formatCard = (card: CardType): string => {
+    if (card.jokerType === 'printed') return '🃏';
+    if (card.jokerType === 'wild') return `${card.rank}${card.suit[0]}(W)`;
+    const suitSymbol = { spades: '♠', hearts: '♥', diamonds: '♦', clubs: '♣' }[card.suit] || card.suit[0];
+    return `${card.rank}${suitSymbol}`;
+  };
+
+  // Convert grouped cards to melds when modal opens
   useEffect(() => {
-    if (visible && cards.length > 0) {
-      const analysis = autoArrangeHand(cards);
-      setMelds(analysis.melds);
-      setDeadwood(analysis.deadwood);
-      setSelectedMeldIndex(null);
+    if (visible && cards && cards.length > 0) {
+      try {
+        console.log('\n📋 DECLARATION MODAL OPENED');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`Total cards: ${cards.length}`);
+        console.log('Cards with groupIndex:', cards.map(c => `${formatCard(c)}[g${c.groupIndex ?? -1}]`).join(' '));
+
+        // Separate cards by their groupIndex
+        const groupedCards: { [key: number]: CardType[] } = {};
+        const ungroupedCards: CardType[] = [];
+
+        cards.forEach(card => {
+          const { groupIndex, ...cardWithoutGroup } = card;
+          if (groupIndex !== undefined && groupIndex >= 0) {
+            if (!groupedCards[groupIndex]) {
+              groupedCards[groupIndex] = [];
+            }
+            groupedCards[groupIndex].push(cardWithoutGroup);
+          } else {
+            ungroupedCards.push(cardWithoutGroup);
+          }
+        });
+
+        console.log(`\nGrouped cards (${Object.keys(groupedCards).length} groups):`);
+        Object.entries(groupedCards).forEach(([idx, grpCards]) => {
+          console.log(`  Group ${idx}: ${grpCards.map(formatCard).join(' ')} (${grpCards.length} cards)`);
+        });
+        console.log(`Ungrouped cards: ${ungroupedCards.map(formatCard).join(' ') || 'none'} (${ungroupedCards.length} cards)`);
+
+        // Convert grouped cards to melds
+        const manualMelds: Meld[] = [];
+        const invalidGroupCards: CardType[] = [];
+
+        Object.entries(groupedCards).forEach(([idx, groupCards]) => {
+          if (groupCards.length >= 3) {
+            const meld = createMeld(groupCards);
+            if (meld) {
+              console.log(`  ✓ Group ${idx} → Valid ${meld.type}: ${groupCards.map(formatCard).join(' ')}`);
+              manualMelds.push(meld);
+            } else {
+              console.log(`  ✗ Group ${idx} → INVALID meld: ${groupCards.map(formatCard).join(' ')}`);
+              invalidGroupCards.push(...groupCards);
+            }
+          } else {
+            console.log(`  ✗ Group ${idx} → Too few cards (${groupCards.length}): ${groupCards.map(formatCard).join(' ')}`);
+            invalidGroupCards.push(...groupCards);
+          }
+        });
+
+        // Auto-arrange only the ungrouped cards
+        const cardsToAutoArrange = [...ungroupedCards, ...invalidGroupCards];
+        console.log(`\nCards to auto-arrange: ${cardsToAutoArrange.map(formatCard).join(' ') || 'none'} (${cardsToAutoArrange.length} cards)`);
+
+        // Calculate total melded cards from manual melds
+        const meldedCardCount = manualMelds.reduce((sum, m) => sum + m.cards.length, 0);
+
+        // Check if we have exactly 13 cards melded and 1 card left (closing card scenario)
+        if (cardsToAutoArrange.length === 1 && meldedCardCount === 13) {
+          // This is the closing card - the card that will be discarded when declaring
+          console.log(`\n✓ Closing card identified: ${formatCard(cardsToAutoArrange[0])}`);
+          setMelds(manualMelds);
+          setClosingCard(cardsToAutoArrange[0]);
+          setDeadwood([]);
+        } else if (cardsToAutoArrange.length > 0) {
+          const analysis = autoArrangeHand(cardsToAutoArrange);
+          console.log(`Auto-arranged melds: ${analysis.melds?.length || 0}`);
+          analysis.melds?.forEach((m, i) => {
+            console.log(`  Auto meld ${i}: ${m.type} - ${m.cards.map(formatCard).join(' ')}`);
+          });
+
+          const allMelds = [...manualMelds, ...(analysis.melds || [])];
+          const totalMeldedNow = allMelds.reduce((sum, m) => sum + m.cards.length, 0);
+
+          // After auto-arrange, check again if we have 13 melded + 1 closing
+          if (analysis.deadwood?.length === 1 && totalMeldedNow === 13) {
+            console.log(`\n✓ Closing card (after auto-arrange): ${formatCard(analysis.deadwood[0])}`);
+            setMelds(allMelds);
+            setClosingCard(analysis.deadwood[0]);
+            setDeadwood([]);
+          } else {
+            console.log(`Auto deadwood: ${analysis.deadwood?.map(formatCard).join(' ') || 'none'}`);
+            setMelds(allMelds);
+            setClosingCard(null);
+            setDeadwood(analysis.deadwood || []);
+          }
+        } else {
+          setMelds(manualMelds);
+          setClosingCard(null);
+          setDeadwood([]);
+        }
+
+        console.log(`\nFinal melds: ${manualMelds.length}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        setSelectedMeldIndex(null);
+      } catch (error) {
+        console.error('Error arranging cards:', error);
+        setMelds([]);
+        setDeadwood([...cards]);
+        setSelectedMeldIndex(null);
+      }
     }
   }, [visible, cards]);
 
   const validation = useMemo(() => {
-    return validateDeclaration(melds, deadwood);
+    try {
+      // Don't include closing card in deadwood - it will be discarded
+      // Only validate the 13 melded cards
+      return validateDeclaration(melds, deadwood);
+    } catch (error) {
+      console.error('Error in validateDeclaration:', error);
+      return {
+        isValid: false,
+        hasPureSequence: false,
+        hasMinimumSequences: false,
+        allCardsMelded: false,
+        melds: [],
+        deadwood: [],
+        deadwoodPoints: 0,
+        errors: ['Error validating declaration'],
+      };
+    }
   }, [melds, deadwood]);
 
+  // Check if we have a valid declaration with closing card
+  const isValidWithClosingCard = validation.isValid || (closingCard && deadwood.length === 0 && validation.hasPureSequence && validation.hasMinimumSequences);
+
   const hints = useMemo(() => {
-    return getDeclarationHint(cards);
+    if (!cards || cards.length === 0) return [];
+    try {
+      return getDeclarationHint(cards);
+    } catch (error) {
+      console.error('Error in getDeclarationHint:', error);
+      return [];
+    }
   }, [cards]);
 
   const handleAutoArrange = useCallback(() => {
-    const analysis = autoArrangeHand(cards);
-    setMelds(analysis.melds);
-    setDeadwood(analysis.deadwood);
-    setSelectedMeldIndex(null);
+    if (!cards || cards.length === 0) return;
+    try {
+      const analysis = autoArrangeHand(cards);
+      setMelds(analysis.melds || []);
+      setDeadwood(analysis.deadwood || []);
+      setSelectedMeldIndex(null);
+    } catch (error) {
+      console.error('Error in handleAutoArrange:', error);
+    }
   }, [cards]);
 
   const handleDeclare = useCallback(() => {
-    if (!validation.isValid) {
+    if (!isValidWithClosingCard) {
       Alert.alert(
         'Invalid Declaration',
         'Your melds do not meet the requirements for a valid declaration. You will receive penalty points.',
@@ -81,7 +220,7 @@ const DeclarationModal: React.FC<DeclarationModalProps> = ({
     } else {
       onDeclare(melds);
     }
-  }, [validation.isValid, melds, onDeclare]);
+  }, [isValidWithClosingCard, melds, onDeclare]);
 
   const getMeldTypeLabel = (meld: Meld): string => {
     switch (meld.type) {
@@ -108,6 +247,7 @@ const DeclarationModal: React.FC<DeclarationModalProps> = ({
       transparent
       animationType="fade"
       onRequestClose={onCancel}
+      supportedOrientations={['landscape', 'landscape-left', 'landscape-right']}
     >
       <BlurView style={styles.blurContainer} blurType="dark" blurAmount={10}>
         <View style={styles.modalContainer}>
@@ -126,18 +266,18 @@ const DeclarationModal: React.FC<DeclarationModalProps> = ({
           {/* Validation status */}
           <View style={[
             styles.validationBanner,
-            { backgroundColor: validation.isValid ? colors.success + '20' : colors.destructive + '20' },
+            { backgroundColor: isValidWithClosingCard ? colors.success + '20' : colors.destructive + '20' },
           ]}>
             <Icon
-              name={validation.isValid ? 'checkmark.circle.fill' : 'exclamationmark.triangle.fill'}
+              name={isValidWithClosingCard ? 'checkmark.circle.fill' : 'exclamationmark.triangle.fill'}
               size={IconSize.medium}
-              color={validation.isValid ? colors.success : colors.destructive}
+              color={isValidWithClosingCard ? colors.success : colors.destructive}
             />
             <Text style={[
               styles.validationText,
-              { color: validation.isValid ? colors.success : colors.destructive },
+              { color: isValidWithClosingCard ? colors.success : colors.destructive },
             ]}>
-              {validation.isValid ? 'Valid Declaration' : 'Invalid Declaration'}
+              {isValidWithClosingCard ? 'Valid Declaration' : 'Invalid Declaration'}
             </Text>
           </View>
 
@@ -173,6 +313,21 @@ const DeclarationModal: React.FC<DeclarationModalProps> = ({
               </TouchableOpacity>
             ))}
 
+            {/* Closing Card */}
+            {closingCard && (
+              <>
+                <Text style={styles.sectionTitle}>Closing Card (will be discarded)</Text>
+                <View style={styles.closingCardContainer}>
+                  <View style={styles.meldCardWrapper}>
+                    <Card card={closingCard} size="small" />
+                  </View>
+                  <Text style={styles.closingCardHint}>
+                    This card will be discarded when you declare
+                  </Text>
+                </View>
+              </>
+            )}
+
             {/* Deadwood */}
             {deadwood.length > 0 && (
               <>
@@ -196,7 +351,7 @@ const DeclarationModal: React.FC<DeclarationModalProps> = ({
             )}
 
             {/* Hints */}
-            {hints.length > 0 && !validation.isValid && (
+            {hints.length > 0 && !isValidWithClosingCard && (
               <View style={styles.hintsContainer}>
                 <Text style={styles.hintsTitle}>Requirements:</Text>
                 {hints.map((hint, index) => (
@@ -226,17 +381,17 @@ const DeclarationModal: React.FC<DeclarationModalProps> = ({
             <TouchableOpacity
               style={[
                 styles.primaryButton,
-                { backgroundColor: validation.isValid ? colors.success : colors.warning },
+                { backgroundColor: isValidWithClosingCard ? colors.success : colors.warning },
               ]}
               onPress={handleDeclare}
             >
               <Icon
-                name={validation.isValid ? 'checkmark.seal.fill' : 'exclamationmark.triangle.fill'}
+                name={isValidWithClosingCard ? 'checkmark.seal.fill' : 'exclamationmark.triangle.fill'}
                 size={IconSize.medium}
                 color="#FFFFFF"
               />
               <Text style={styles.primaryButtonText}>
-                {validation.isValid ? 'Declare' : 'Declare (Penalty)'}
+                {isValidWithClosingCard ? 'Declare' : 'Declare (Penalty)'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -335,6 +490,21 @@ const createStyles = (colors: ThemeColors) =>
     },
     meldCardWrapper: {
       // Individual card wrapper
+    },
+    closingCardContainer: {
+      backgroundColor: colors.accent + '10',
+      borderRadius: BorderRadius.medium,
+      padding: Spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.accent + '30',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+    },
+    closingCardHint: {
+      ...Typography.footnote,
+      color: colors.secondaryLabel,
+      flex: 1,
     },
     deadwoodContainer: {
       backgroundColor: colors.destructive + '10',

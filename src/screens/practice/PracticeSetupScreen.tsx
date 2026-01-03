@@ -23,12 +23,12 @@ import { ThemeColors, Typography, Spacing, BorderRadius, IconSize } from '../../
 import Icon from '../../components/Icon';
 
 const VARIANT_OPTIONS: { value: PracticeVariant; label: string; description: string }[] = [
-  { value: 'pool-101', label: 'Pool 101', description: 'Eliminated at 101 points' },
-  { value: 'pool-201', label: 'Pool 201', description: 'Eliminated at 201 points' },
-  { value: 'pool-250', label: 'Pool 250', description: 'Eliminated at 250 points' },
+  { value: 'pool', label: 'Pool', description: 'Eliminated at point limit' },
   { value: 'points', label: 'Points', description: 'Single round, lowest wins' },
   { value: 'deals', label: 'Deals', description: 'Fixed number of deals' },
 ];
+
+const POOL_LIMIT_PRESETS = [101, 201, 250];
 
 const DIFFICULTY_OPTIONS: { value: BotDifficulty; label: string; icon: string }[] = [
   { value: 'easy', label: 'Easy', icon: 'tortoise.fill' },
@@ -46,12 +46,14 @@ const PracticeSetupScreen = () => {
   const [playerName, setPlayerName] = useState('You');
   const [botCount, setBotCount] = useState(3);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('medium');
-  const [variant, setVariant] = useState<PracticeVariant>('pool-201');
+  const [variant, setVariant] = useState<PracticeVariant>('points');
+  const [poolLimit, setPoolLimit] = useState(201);
   const [numberOfDeals, setNumberOfDeals] = useState(3);
 
   const handleStartGame = useCallback(async () => {
     const config: PracticeGameConfig = {
       variant,
+      poolLimit: variant === 'pool' ? poolLimit : undefined,
       numberOfDeals: variant === 'deals' ? numberOfDeals : undefined,
       firstDropPenalty: DEFAULT_FIRST_DROP,
       middleDropPenalty: DEFAULT_MIDDLE_DROP,
@@ -60,7 +62,7 @@ const PracticeSetupScreen = () => {
 
     await createGame(playerName.trim() || 'You', botCount, difficulty, config);
     navigation.replace('PracticeGame');
-  }, [playerName, botCount, difficulty, variant, numberOfDeals, createGame, navigation]);
+  }, [playerName, botCount, difficulty, variant, poolLimit, numberOfDeals, createGame, navigation]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -183,6 +185,37 @@ const PracticeSetupScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Pool limit (for Pool variant) */}
+        {variant === 'pool' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Point Limit</Text>
+            <View style={styles.segmentedControl}>
+              {POOL_LIMIT_PRESETS.map((num) => (
+                <TouchableOpacity
+                  key={num}
+                  style={[
+                    styles.segment,
+                    poolLimit === num && styles.selectedSegment,
+                  ]}
+                  onPress={() => setPoolLimit(num)}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      poolLimit === num && styles.selectedSegmentText,
+                    ]}
+                  >
+                    {num}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.helperText}>
+              Players are eliminated when they exceed {poolLimit} points
+            </Text>
+          </View>
+        )}
 
         {/* Deals count (for Deals variant) */}
         {variant === 'deals' && (

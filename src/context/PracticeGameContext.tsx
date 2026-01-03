@@ -25,7 +25,6 @@ import {
   Meld,
   BotDifficulty,
   CARDS_PER_PLAYER,
-  POOL_LIMITS,
 } from '../engine/types';
 import {
   createDecks,
@@ -55,6 +54,18 @@ import {
 } from '../engine/bot';
 
 const STORAGE_KEY = 'practiceGame';
+
+// Static card formatter for logging
+const formatCardStatic = (card: Card): string => {
+  const suitSymbols: Record<string, string> = {
+    hearts: '♥',
+    diamonds: '♦',
+    clubs: '♣',
+    spades: '♠',
+  };
+  if (card.jokerType === 'printed') return '🃏';
+  return `${card.rank}${suitSymbols[card.suit]}`;
+};
 
 interface PracticeGameContextType {
   // State
@@ -196,6 +207,8 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
       drawPile: dealResult.drawPile,
       discardPile: dealResult.discardPile,
       wildJokerCard: dealResult.wildJokerCard,
+      droppedPlayers: [],
+      humanHasDrawn: false,
     };
 
     const newGame: PracticeGameState = {
@@ -214,6 +227,25 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
 
     discardHistoryRef.current = [...dealResult.discardPile];
     setGameState(newGame);
+
+    // Log initial game setup
+    console.log('\n' + '='.repeat(50));
+    console.log('🎮 NEW GAME STARTED');
+    console.log('='.repeat(50));
+    console.log(`Variant: ${config.variant.toUpperCase()}`);
+    console.log(`Players: ${players.length}`);
+    console.log(`Dealer: ${players[0].name} (index 0)`);
+    console.log(`First turn: ${players[1].name} (index 1)`);
+    console.log(`Wild Joker: ${dealResult.wildJokerCard ? formatCardStatic(dealResult.wildJokerCard) : 'None'}`);
+    console.log(`Draw pile: ${dealResult.drawPile.length} | Discard pile: ${dealResult.discardPile.length}`);
+    console.log('\n📋 Initial Hands:');
+    players.forEach((player, idx) => {
+      const hand = dealResult.hands[player.id];
+      const handStr = hand.map(formatCardStatic).join(' ');
+      const marker = idx === 0 ? ' [DEALER]' : idx === 1 ? ' [FIRST TURN]' : '';
+      console.log(`   ${player.name}${marker}: ${handStr}`);
+    });
+    console.log('='.repeat(50) + '\n');
   }, []);
 
   /**
@@ -241,6 +273,8 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
       drawPile: dealResult.drawPile,
       discardPile: dealResult.discardPile,
       wildJokerCard: dealResult.wildJokerCard,
+      droppedPlayers: [],
+      humanHasDrawn: false,
     };
 
     discardHistoryRef.current = [...dealResult.discardPile];
@@ -301,6 +335,9 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
     // Add card to player's hand
     const newHand = addCardToHand(round.hands[currentPlayerId], drawnCard);
 
+    // Track if human has drawn (for drop penalty calculation)
+    const isHumanDraw = currentPlayerId === 'human';
+
     setGameState(prev => {
       if (!prev?.currentRound) return prev;
       return {
@@ -314,6 +351,7 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
           drawPile: newDrawPile,
           discardPile: newDiscardPile,
           turnPhase: 'discard',
+          humanHasDrawn: prev.currentRound.humanHasDrawn || isHumanDraw,
           lastAction: {
             playerId: currentPlayerId,
             action: 'draw',
@@ -346,8 +384,12 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
     const newDiscardPile = addToDiscardPile(round.discardPile, card);
     discardHistoryRef.current.push(card);
 
-    // Move to next player
-    const nextPlayerIndex = (round.currentPlayerIndex + 1) % gameState.activePlayers.length;
+    // Move to next player (skip dropped players)
+    let nextPlayerIndex = (round.currentPlayerIndex + 1) % gameState.activePlayers.length;
+    const droppedPlayers = round.droppedPlayers || [];
+    while (droppedPlayers.includes(gameState.activePlayers[nextPlayerIndex])) {
+      nextPlayerIndex = (nextPlayerIndex + 1) % gameState.activePlayers.length;
+    }
 
     setGameState(prev => {
       if (!prev?.currentRound) return prev;
@@ -410,8 +452,9 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
     };
 
     // Check for eliminations (pool rummy)
+    const poolLimit = gameState.config.poolLimit;
     const updatedActivePlayers = gameState.activePlayers.filter(
-      id => !isPlayerEliminated(newScores[id] || 0, gameState.config.variant)
+      id => !isPlayerEliminated(newScores[id] || 0, gameState.config.variant, poolLimit)
     );
 
     // Check if game should end
@@ -420,11 +463,12 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
       newScores,
       [...gameState.roundResults, result],
       gameState.config.variant,
-      gameState.config.numberOfDeals
+      gameState.config.numberOfDeals,
+      poolLimit
     );
 
     const winner = gameEnded
-      ? determineGameWinner(gameState.players, newScores, gameState.config.variant)
+      ? determineGameWinner(gameState.players, newScores, gameState.config.variant, poolLimit)
       : null;
 
     setGameState(prev => {
@@ -458,50 +502,102 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
     const isFirstTurn = round.turnPhase === 'draw';
     const dropType = isFirstTurn ? 'first' : 'middle';
 
-    // Calculate drop penalty
-    const roundScores = calculateRoundScores(
-      round.hands,
-      currentPlayerId,
-      `drop-${dropType}`,
-      gameState.config.variant,
-      gameState.config.firstDropPenalty,
-      gameState.config.middleDropPenalty,
-      gameState.config.invalidDeclarationPenalty
-    );
+    // Calculate drop penalty for the dropping player only
+    const dropPenalty = dropType === 'first'
+      ? gameState.config.firstDropPenalty
+      : gameState.config.middleDropPenalty;
 
-    // Update cumulative scores
-    const newScores = updateCumulativeScores(gameState.scores, roundScores);
-
-    // Create round result
-    const result: RoundResult = {
-      winnerId: currentPlayerId,
-      winnerName: gameState.players.find(p => p.id === currentPlayerId)?.name || 'Unknown',
-      declarationType: `drop-${dropType}`,
-      scores: roundScores,
-      timestamp: Date.now(),
+    // Update dropper's score
+    const newScores = {
+      ...gameState.scores,
+      [currentPlayerId]: (gameState.scores[currentPlayerId] || 0) + dropPenalty,
     };
 
-    // Check for eliminations
+    // Add player to dropped list for this round
+    const newDroppedPlayers = [...(round.droppedPlayers || []), currentPlayerId];
+
+    // Find players still in this round (active and not dropped)
+    const playersStillInRound = gameState.activePlayers.filter(
+      id => !newDroppedPlayers.includes(id)
+    );
+
+    // Check for eliminations (pool rummy)
+    const poolLimit = gameState.config.poolLimit;
     const updatedActivePlayers = gameState.activePlayers.filter(
-      id => !isPlayerEliminated(newScores[id] || 0, gameState.config.variant)
+      id => !isPlayerEliminated(newScores[id] || 0, gameState.config.variant, poolLimit)
     );
 
-    // Check if game should end
-    const gameEnded = shouldGameEnd(
-      gameState.players,
-      newScores,
-      [...gameState.roundResults, result],
-      gameState.config.variant,
-      gameState.config.numberOfDeals
-    );
+    // If only one player remains in round, they win
+    if (playersStillInRound.length === 1) {
+      const winnerId = playersStillInRound[0];
+      const winner = gameState.players.find(p => p.id === winnerId);
 
-    const winner = gameEnded
-      ? determineGameWinner(gameState.players, newScores, gameState.config.variant)
-      : null;
+      // Calculate scores for remaining players (they get their deadwood points)
+      const roundScores: { [playerId: string]: number } = {};
+      for (const playerId of gameState.activePlayers) {
+        if (newDroppedPlayers.includes(playerId)) {
+          // Dropped players already have their penalty in newScores
+          roundScores[playerId] = playerId === currentPlayerId ? dropPenalty :
+            (dropType === 'first' ? gameState.config.firstDropPenalty : gameState.config.middleDropPenalty);
+        } else {
+          // Winner gets 0 points
+          roundScores[playerId] = 0;
+        }
+      }
 
-    // Move to next player or end round
-    const nextPlayerIndex = (round.currentPlayerIndex + 1) % gameState.activePlayers.length;
+      const result: RoundResult = {
+        winnerId,
+        winnerName: winner?.name || 'Unknown',
+        declarationType: `drop-${dropType}`,
+        scores: roundScores,
+        timestamp: Date.now(),
+      };
 
+      // Check if game should end
+      const gameEnded = shouldGameEnd(
+        gameState.players,
+        newScores,
+        [...gameState.roundResults, result],
+        gameState.config.variant,
+        gameState.config.numberOfDeals,
+        poolLimit
+      );
+
+      const gameWinner = gameEnded
+        ? determineGameWinner(gameState.players, newScores, gameState.config.variant, poolLimit)
+        : null;
+
+      setGameState(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          currentRound: {
+            ...prev.currentRound!,
+            phase: 'ended',
+            droppedPlayers: newDroppedPlayers,
+            lastAction: {
+              playerId: currentPlayerId,
+              action: 'drop',
+            },
+          },
+          roundResults: [...prev.roundResults, result],
+          scores: newScores,
+          activePlayers: updatedActivePlayers,
+          gamePhase: gameEnded ? 'ended' : 'playing',
+          winner: gameWinner,
+          updatedAt: Date.now(),
+        };
+      });
+      return;
+    }
+
+    // Find next player who hasn't dropped
+    let nextPlayerIndex = (round.currentPlayerIndex + 1) % gameState.activePlayers.length;
+    while (newDroppedPlayers.includes(gameState.activePlayers[nextPlayerIndex])) {
+      nextPlayerIndex = (nextPlayerIndex + 1) % gameState.activePlayers.length;
+    }
+
+    // Continue round with remaining players
     setGameState(prev => {
       if (!prev) return null;
       return {
@@ -510,16 +606,14 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
           ...prev.currentRound!,
           currentPlayerIndex: nextPlayerIndex,
           turnPhase: 'draw',
+          droppedPlayers: newDroppedPlayers,
           lastAction: {
             playerId: currentPlayerId,
             action: 'drop',
           },
         },
-        roundResults: [...prev.roundResults, result],
         scores: newScores,
         activePlayers: updatedActivePlayers,
-        gamePhase: gameEnded ? 'ended' : 'playing',
-        winner,
         updatedAt: Date.now(),
       };
     });
@@ -531,9 +625,31 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
   const isBotTurn = useCallback((): boolean => {
     if (!gameState?.currentRound) return false;
 
-    const currentPlayerId = gameState.activePlayers[gameState.currentRound.currentPlayerIndex];
+    const round = gameState.currentRound;
+    const currentPlayerId = gameState.activePlayers[round.currentPlayerIndex];
+
+    // Skip if this player has dropped
+    if (round.droppedPlayers?.includes(currentPlayerId)) return false;
+
     const currentPlayer = gameState.players.find(p => p.id === currentPlayerId);
-    return currentPlayer?.isBot ?? false;
+    const isBot = currentPlayer?.isBot ?? false;
+
+    // Log when it becomes human's turn
+    if (!isBot && round.turnPhase === 'draw') {
+      const hand = round.hands[currentPlayerId];
+      const handStr = hand?.map(formatCardStatic).join(' ') || 'N/A';
+      const topDiscard = round.discardPile.length > 0
+        ? round.discardPile[round.discardPile.length - 1]
+        : null;
+      console.log(`\n👤 [YOUR TURN] - Player ${round.currentPlayerIndex + 1}/${gameState.activePlayers.length}`);
+      console.log(`   Hand (${hand?.length || 0}): ${handStr}`);
+      console.log(`   Phase: ${round.turnPhase}`);
+      if (topDiscard) {
+        console.log(`   Top discard: ${formatCardStatic(topDiscard)}`);
+      }
+    }
+
+    return isBot;
   }, [gameState]);
 
   /**
@@ -545,6 +661,7 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
     const round = gameState.currentRound;
     const currentPlayerId = gameState.activePlayers[round.currentPlayerIndex];
     const currentPlayer = gameState.players.find(p => p.id === currentPlayerId);
+    const dealer = gameState.players[round.dealerIndex];
 
     if (!currentPlayer?.isBot || !currentPlayer.difficulty) return;
 
@@ -557,37 +674,49 @@ export const PracticeGameProvider: React.FC<PracticeGameProviderProps> = ({ chil
     const isFirstTurn = round.turnPhase === 'draw' &&
       !round.lastAction?.playerId;
 
-    const poolLimit = POOL_LIMITS[gameState.config.variant] || null;
-
     const botContext: BotContext = {
       hand,
       topDiscard,
       discardHistory: discardHistoryRef.current,
       isFirstTurn,
       currentScore: gameState.scores[currentPlayerId] || 0,
-      poolLimit,
+      poolLimit: gameState.config.poolLimit || null,
       turnPhase: round.turnPhase,
     };
 
     const decision = getBotDecision(currentPlayer.difficulty, botContext);
 
+    // Debug logging for bot plays
+    const handStr = hand.map(formatCardStatic).join(' ');
+    console.log(`\n🤖 [${currentPlayer.name}] (${currentPlayer.difficulty}) - Player ${round.currentPlayerIndex + 1}/${gameState.activePlayers.length}`);
+    console.log(`   Dealer: ${dealer?.name} | Round: ${round.roundNumber}`);
+    console.log(`   Hand (${hand.length}): ${handStr}`);
+    console.log(`   Phase: ${round.turnPhase} | Score: ${gameState.scores[currentPlayerId] || 0}`);
+    if (topDiscard) {
+      console.log(`   Top discard: ${formatCardStatic(topDiscard)} | Discard pile: ${round.discardPile.length} | Draw pile: ${round.drawPile.length}`);
+    }
+
     // Wait for "thinking" time
     botTurnTimeoutRef.current = setTimeout(async () => {
       switch (decision.action) {
         case 'draw':
+          console.log(`   ➡️ Action: DRAW from ${decision.source || 'deck'}`);
           await drawCard(decision.source || 'deck');
           break;
         case 'discard':
           if (decision.card) {
+            console.log(`   ➡️ Action: DISCARD ${formatCardStatic(decision.card)}`);
             await discardCard(decision.card);
           }
           break;
         case 'declare':
+          console.log(`   ➡️ Action: DECLARE with ${decision.melds?.length || 0} melds`);
           if (decision.melds) {
             await declare(decision.melds);
           }
           break;
         case 'drop':
+          console.log(`   ➡️ Action: DROP`);
           await drop();
           break;
       }

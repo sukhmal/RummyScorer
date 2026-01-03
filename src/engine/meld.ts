@@ -18,12 +18,16 @@ export const MAX_SET_SIZE = 4;
  * Jokers can substitute for missing cards
  */
 export const isValidSet = (cards: Card[]): boolean => {
-  if (cards.length < MIN_MELD_SIZE || cards.length > MAX_SET_SIZE) {
+  if (!cards || cards.length < MIN_MELD_SIZE || cards.length > MAX_SET_SIZE) {
     return false;
   }
 
-  const nonJokers = cards.filter(c => !isJoker(c));
-  const jokerCount = cards.length - nonJokers.length;
+  // Filter out invalid cards
+  const validCards = cards.filter(c => c && c.id);
+  if (validCards.length < MIN_MELD_SIZE) return false;
+
+  const nonJokers = validCards.filter(c => !isJoker(c));
+  const jokerCount = validCards.length - nonJokers.length;
 
   if (nonJokers.length === 0) {
     // All jokers is not a valid set
@@ -53,12 +57,16 @@ export const isValidSet = (cards: Card[]): boolean => {
  * A-2-3 is valid, Q-K-A is valid, K-A-2 is NOT valid
  */
 export const isValidSequence = (cards: Card[]): boolean => {
-  if (cards.length < MIN_MELD_SIZE) {
+  if (!cards || cards.length < MIN_MELD_SIZE) {
     return false;
   }
 
-  const nonJokers = cards.filter(c => !isJoker(c));
-  const jokerCount = cards.length - nonJokers.length;
+  // Filter out invalid cards
+  const validCards = cards.filter(c => c && c.id);
+  if (validCards.length < MIN_MELD_SIZE) return false;
+
+  const nonJokers = validCards.filter(c => !isJoker(c));
+  const jokerCount = validCards.length - nonJokers.length;
 
   if (nonJokers.length === 0) {
     // All jokers is not a valid sequence
@@ -71,26 +79,39 @@ export const isValidSequence = (cards: Card[]): boolean => {
     return false;
   }
 
-  // Sort by rank
-  const sorted = [...nonJokers].sort((a, b) => getRankIndex(a.rank) - getRankIndex(b.rank));
+  // Check if this could be an A-2-3... sequence or Q-K-A sequence
+  const hasAce = nonJokers.some(c => c.rank === 'A');
+  const hasLowCards = nonJokers.some(c => {
+    const idx = getRankIndex(c.rank);
+    return idx >= 2 && idx <= 4; // 2, 3, 4
+  });
+  const hasHighCards = nonJokers.some(c => {
+    const idx = getRankIndex(c.rank);
+    return idx >= 10 && idx <= 13; // 10, J, Q, K
+  });
 
-  // Check if this could be an A-2-3... sequence
-  const hasAce = sorted.some(c => c.rank === 'A');
-  const hasLowCards = sorted.some(c => getRankIndex(c.rank) <= 3);
-  const hasHighCards = sorted.some(c => getRankIndex(c.rank) >= 12);
+  // Determine if Ace should be high or low
+  // Ace is high (14) when we have high cards (10-K) and no low cards (2-4)
+  // Ace is low (1) when we have low cards (2-4)
+  const aceHigh = hasAce && hasHighCards && !hasLowCards;
 
-  // If we have both low and high cards with an ace, it might be ambiguous
-  // We need to try both interpretations
+  // Sort by rank with correct Ace interpretation
+  const sorted = [...nonJokers].sort((a, b) =>
+    getRankIndex(a.rank, aceHigh) - getRankIndex(b.rank, aceHigh)
+  );
 
-  // Try normal interpretation first
-  const normalCheck = checkSequenceGaps(sorted, jokerCount, false);
-  if (normalCheck.isValid) {
+  // Try the sequence check
+  const check = checkSequenceGaps(sorted, jokerCount, !aceHigh);
+  if (check.isValid) {
     return true;
   }
 
-  // If we have an ace and low cards, try ace-low interpretation
-  if (hasAce && hasLowCards && !hasHighCards) {
-    return checkSequenceGaps(sorted, jokerCount, true).isValid;
+  // If we have an ace, try the opposite interpretation
+  if (hasAce) {
+    const sortedAlt = [...nonJokers].sort((a, b) =>
+      getRankIndex(a.rank, !aceHigh) - getRankIndex(b.rank, !aceHigh)
+    );
+    return checkSequenceGaps(sortedAlt, jokerCount, aceHigh).isValid;
   }
 
   return false;
@@ -98,6 +119,9 @@ export const isValidSequence = (cards: Card[]): boolean => {
 
 /**
  * Helper to check gaps in a sequence
+ * @param sorted - Cards sorted by rank
+ * @param availableJokers - Number of jokers available to fill gaps
+ * @param aceLow - If true, Ace is treated as 1; if false, Ace is treated as 14
  */
 const checkSequenceGaps = (
   sorted: Card[],
@@ -107,8 +131,9 @@ const checkSequenceGaps = (
   let jokersUsed = 0;
 
   for (let i = 1; i < sorted.length; i++) {
-    const prevRank = aceLow && sorted[i - 1].rank === 'A' ? 1 : getRankIndex(sorted[i - 1].rank);
-    const currRank = aceLow && sorted[i].rank === 'A' ? 1 : getRankIndex(sorted[i].rank);
+    // Use getRankIndex with aceHigh = !aceLow
+    const prevRank = getRankIndex(sorted[i - 1].rank, !aceLow);
+    const currRank = getRankIndex(sorted[i].rank, !aceLow);
 
     const gap = currRank - prevRank - 1;
 
@@ -129,13 +154,64 @@ const checkSequenceGaps = (
 };
 
 /**
- * Check if a sequence is pure (no jokers)
+ * Check if a sequence is pure (no jokers substituting for other cards)
+ * A sequence with wild-ranked cards is still pure if they're used in their natural position
+ * (same suit as sequence, filling their actual rank slot)
  */
 export const isPureSequence = (cards: Card[]): boolean => {
   if (!isValidSequence(cards)) {
     return false;
   }
-  return cards.every(c => !isJoker(c));
+
+  // Printed jokers always make it impure - they're substituting
+  if (cards.some(c => c.jokerType === 'printed')) {
+    return false;
+  }
+
+  // If no wild jokers, it's pure
+  const hasWildJoker = cards.some(c => c.jokerType === 'wild');
+  if (!hasWildJoker) {
+    return true;
+  }
+
+  // For wild jokers: check if they're used in their natural position
+  // This means: all cards have same suit AND ranks are consecutive (no gaps)
+
+  // Check all cards have same suit
+  const suits = new Set(cards.map(c => c.suit));
+  if (suits.size !== 1) {
+    // Wild jokers have different suits - they're substituting
+    return false;
+  }
+
+  // Determine Ace position
+  const hasAce = cards.some(c => c.rank === 'A');
+  const hasLowCards = cards.some(c => {
+    const idx = getRankIndex(c.rank);
+    return idx >= 2 && idx <= 4;
+  });
+  const hasHighCards = cards.some(c => {
+    const idx = getRankIndex(c.rank);
+    return idx >= 10 && idx <= 13;
+  });
+  const aceHigh = hasAce && hasHighCards && !hasLowCards;
+
+  // Sort ALL cards by rank and check for consecutive ranks
+  const sorted = [...cards].sort((a, b) =>
+    getRankIndex(a.rank, aceHigh) - getRankIndex(b.rank, aceHigh)
+  );
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prevRank = getRankIndex(sorted[i - 1].rank, aceHigh);
+    const currRank = getRankIndex(sorted[i].rank, aceHigh);
+    if (currRank - prevRank !== 1) {
+      // Gap exists - wild jokers are filling gaps, not natural positions
+      return false;
+    }
+  }
+
+  // All cards same suit, consecutive ranks - wild jokers are in natural positions
+  return true;
 };
 
 /**

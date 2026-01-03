@@ -78,13 +78,14 @@ export interface RoundResult {
 /**
  * Game variants supported in practice mode
  */
-export type PracticeVariant = 'pool-101' | 'pool-201' | 'pool-250' | 'points' | 'deals';
+export type PracticeVariant = 'pool' | 'points' | 'deals';
 
 /**
  * Configuration for a practice game
  */
 export interface PracticeGameConfig {
   variant: PracticeVariant;
+  poolLimit?: number; // For pool rummy (e.g., 101, 201, 250)
   numberOfDeals?: number; // For deals rummy
   pointValue?: number; // For points rummy
   firstDropPenalty: number;
@@ -120,6 +121,8 @@ export interface RoundState {
   drawPile: Card[];
   discardPile: Card[];
   wildJokerCard: Card | null; // The card that determines wild jokers
+  droppedPlayers: string[]; // IDs of players who dropped this round
+  humanHasDrawn: boolean; // Has human drawn at least once (for drop penalty: 25 before, 50 after)
   lastAction?: {
     playerId: string;
     action: 'draw' | 'discard' | 'declare' | 'drop';
@@ -198,10 +201,6 @@ export const getRankIndex = (rank: Rank, aceHigh = false): number => {
 };
 
 /**
- * Pool limits for different variants
+ * Default pool limit
  */
-export const POOL_LIMITS: { [key in PracticeVariant]?: number } = {
-  'pool-101': 101,
-  'pool-201': 201,
-  'pool-250': 250,
-};
+export const DEFAULT_POOL_LIMIT = 201;

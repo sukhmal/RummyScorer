@@ -1,7 +1,7 @@
 /**
  * ActionBar Component
  *
- * Game action buttons: Draw from Deck, Draw from Discard, Discard, Declare, Drop
+ * Compact game action buttons: Draw, Pick Up, Discard, Declare, Drop, Sort
  */
 
 import React, { useMemo } from 'react';
@@ -13,10 +13,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { ThemeColors, Spacing, Typography, TapTargets } from '../../theme';
+import { ThemeColors, Spacing, Typography } from '../../theme';
 import Icon from '../Icon';
 
-type ActionType = 'draw-deck' | 'draw-discard' | 'discard' | 'declare' | 'drop';
+type ActionType = 'draw-deck' | 'draw-discard' | 'discard' | 'declare' | 'drop' | 'sort' | 'group';
 
 interface ActionConfig {
   icon: string;
@@ -55,7 +55,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
     if (turnPhase === 'draw') {
       actions.push({
         type: 'draw-deck',
-        config: { icon: 'square.stack.3d.up', label: 'Draw Deck' },
+        config: { icon: 'square.stack.3d.up', label: 'Draw' },
       });
 
       if (hasDiscardCard) {
@@ -64,49 +64,69 @@ const ActionBar: React.FC<ActionBarProps> = ({
           config: { icon: 'arrow.up.square', label: 'Pick Up' },
         });
       }
-
-      if (canDrop) {
-        actions.push({
-          type: 'drop',
-          config: { icon: 'xmark.circle', label: 'Drop', dangerous: true },
-        });
-      }
     } else {
-      // Discard phase
-      actions.push({
-        type: 'discard',
-        config: {
-          icon: 'arrow.down.square',
-          label: selectedCardCount > 0 ? 'Discard' : 'Select Card',
-        },
-      });
-
-      if (canDeclare) {
+      // Discard phase - only show discard when 0 or 1 card selected
+      if (selectedCardCount <= 1) {
         actions.push({
-          type: 'declare',
-          config: { icon: 'checkmark.seal.fill', label: 'Declare', color: colors.success },
+          type: 'discard',
+          config: {
+            icon: 'arrow.down.square',
+            label: selectedCardCount > 0 ? 'Discard' : 'Select',
+          },
         });
-      }
 
-      if (canDrop) {
-        actions.push({
-          type: 'drop',
-          config: { icon: 'xmark.circle', label: 'Drop', dangerous: true },
-        });
+        if (canDeclare) {
+          actions.push({
+            type: 'declare',
+            config: { icon: 'checkmark.seal.fill', label: 'Declare', color: colors.success },
+          });
+        }
       }
     }
+
+    // Drop is always available during player's turn (25 pts before draw, 50 pts after)
+    if (canDrop) {
+      actions.push({
+        type: 'drop',
+        config: { icon: 'xmark.circle', label: 'Drop', dangerous: true },
+      });
+    }
+
+    // Group is available when 2+ cards selected
+    if (selectedCardCount >= 2) {
+      actions.push({
+        type: 'group',
+        config: { icon: 'rectangle.stack', label: 'Group', color: colors.warning },
+      });
+    }
+
+    // Sort is always available
+    actions.push({
+      type: 'sort',
+      config: { icon: 'arrow.up.arrow.down', label: 'Sort' },
+    });
 
     return actions;
   };
 
   const actions = getAvailableActions();
 
-  const renderAction = (type: ActionType, config: ActionConfig, _index: number) => {
-    const isActive =
+  const renderAction = (type: ActionType, config: ActionConfig) => {
+    // Sort and Group are always enabled (not turn-dependent)
+    const isTurnIndependent = type === 'sort' || type === 'group';
+
+    // Check if action is disabled due to not being player's turn
+    const isActionDisabled = isDisabled && !isTurnIndependent;
+
+    // Visual active state - consider both action availability and turn
+    const isActive = !isActionDisabled && (
       (type === 'discard' && selectedCardCount > 0) ||
       type === 'draw-deck' ||
       type === 'draw-discard' ||
-      type === 'declare';
+      type === 'declare' ||
+      type === 'sort' ||
+      type === 'group'
+    );
 
     const buttonColor = config.dangerous
       ? colors.destructive
@@ -118,17 +138,16 @@ const ActionBar: React.FC<ActionBarProps> = ({
         style={[
           styles.actionButton,
           !isActive && type === 'discard' && styles.inactiveButton,
-          config.dangerous && styles.dangerButton,
         ]}
         onPress={() => onAction(type)}
-        disabled={isDisabled || (type === 'discard' && selectedCardCount === 0)}
+        disabled={isActionDisabled || (type === 'discard' && selectedCardCount === 0)}
         activeOpacity={0.7}
         accessibilityLabel={config.label}
         accessibilityRole="button"
       >
         <Icon
           name={config.icon}
-          size={24}
+          size={18}
           color={isActive ? buttonColor : colors.tertiaryLabel}
           weight="medium"
         />
@@ -147,20 +166,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.actionsRow}>
-        {actions.map((action, index) => renderAction(action.type, action.config, index))}
-      </View>
-
-      {/* Phase indicator */}
-      <View style={styles.phaseIndicator}>
-        <Icon
-          name={turnPhase === 'draw' ? 'arrow.down.circle' : 'arrow.up.circle'}
-          size={16}
-          color={colors.secondaryLabel}
-          weight="medium"
-        />
-        <Text style={styles.phaseText}>
-          {turnPhase === 'draw' ? 'Draw a card' : 'Discard a card'}
-        </Text>
+        {actions.map((action) => renderAction(action.type, action.config))}
       </View>
     </View>
   );
@@ -170,10 +176,10 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: {
       backgroundColor: colors.cardBackground,
-      borderTopWidth: 1,
+      borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.separator,
-      paddingVertical: Spacing.sm,
-      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.xs,
+      paddingHorizontal: Spacing.sm,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -183,31 +189,16 @@ const createStyles = (colors: ThemeColors) =>
     actionButton: {
       alignItems: 'center',
       justifyContent: 'center',
-      minWidth: TapTargets.minimum,
-      minHeight: TapTargets.minimum,
-      paddingHorizontal: Spacing.sm,
+      paddingHorizontal: Spacing.xs,
+      paddingVertical: 2,
     },
     inactiveButton: {
       opacity: 0.5,
     },
-    dangerButton: {
-      // Styling for dangerous actions
-    },
     actionLabel: {
-      ...Typography.caption1,
-      marginTop: 4,
+      ...Typography.caption2,
+      marginTop: 1,
       fontWeight: '500',
-    },
-    phaseIndicator: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: Spacing.sm,
-      gap: Spacing.xs,
-    },
-    phaseText: {
-      ...Typography.footnote,
-      color: colors.secondaryLabel,
     },
   });
 

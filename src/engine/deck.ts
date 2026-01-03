@@ -57,12 +57,12 @@ export const createDeck = (deckIndex: number = 0): Card[] => {
 };
 
 /**
- * Create multiple decks for games with many players
- * - 2-4 players: 1 deck
- * - 5-6 players: 2 decks
+ * Create multiple decks for games
+ * Indian Rummy always uses 2 decks (108 cards total including 4 jokers)
+ * This ensures enough cards for dealing + draw pile
  */
-export const createDecks = (playerCount: number): Card[] => {
-  const deckCount = playerCount > 4 ? 2 : 1;
+export const createDecks = (_playerCount: number): Card[] => {
+  const deckCount = 2; // Always use 2 decks for Indian Rummy
   const allCards: Card[] = [];
 
   for (let i = 0; i < deckCount; i++) {

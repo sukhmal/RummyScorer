@@ -3,20 +3,29 @@
  *
  * Displays draw pile (face-down) or discard pile (face-up).
  * Shows card count and supports tap to draw.
+ * Includes visual feedback when tappable.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ViewStyle,
+  Animated,
+  Easing,
 } from 'react-native';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { useTheme } from '../../context/ThemeContext';
 import { Card as CardType } from '../../engine/types';
 import { ThemeColors, Spacing, BorderRadius, Typography } from '../../theme';
 import Card from './Card';
+
+const hapticOptions = {
+  enableVibrateFallback: true,
+  ignoreAndroidSystemSettings: false,
+};
 
 interface PileProps {
   type: 'draw' | 'discard';
@@ -44,6 +53,73 @@ const Pile: React.FC<PileProps> = ({
 
   const cardCount = cards.length;
   const displayCard = type === 'discard' ? topCard : null;
+  const canTap = !isDisabled && !!onPress;
+
+  // Pulsing animation for tappable piles
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (canTap) {
+      // Single looping animation for both pulse and glow
+      // Use JS driver since shadowOpacity doesn't support native driver
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(pulseAnim, {
+              toValue: 1.05,
+              duration: 800,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: false,
+            }),
+            Animated.timing(glowAnim, {
+              toValue: 1,
+              duration: 800,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: false,
+            }),
+          ]),
+          Animated.parallel([
+            Animated.timing(pulseAnim, {
+              toValue: 1,
+              duration: 800,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: false,
+            }),
+            Animated.timing(glowAnim, {
+              toValue: 0.3,
+              duration: 800,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: false,
+            }),
+          ]),
+        ])
+      );
+
+      animation.start();
+
+      return () => {
+        animation.stop();
+      };
+    } else {
+      pulseAnim.setValue(1);
+      glowAnim.setValue(0);
+    }
+  }, [canTap, pulseAnim, glowAnim]);
+
+  const handlePress = () => {
+    if (onPress) {
+      ReactNativeHapticFeedback.trigger('impactMedium', hapticOptions);
+      onPress();
+    }
+  };
+
+  const glowStyle = canTap ? {
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: glowAnim,
+    shadowRadius: 12,
+  } : {};
 
   const renderPileStack = () => {
     // Show stacked card effect for draw pile
@@ -96,23 +172,36 @@ const Pile: React.FC<PileProps> = ({
   return (
     <TouchableOpacity
       style={[styles.container, style]}
-      onPress={onPress}
-      disabled={isDisabled || !onPress}
-      activeOpacity={0.8}
-      accessibilityLabel={`${label || type} pile${cardCount > 0 ? `, ${cardCount} cards` : ', empty'}`}
+      onPress={handlePress}
+      disabled={!canTap}
+      activeOpacity={0.7}
+      accessibilityLabel={`${label || type} pile${cardCount > 0 ? `, ${cardCount} cards` : ', empty'}${canTap ? ', tap to draw' : ''}`}
       accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled }}
+      accessibilityState={{ disabled: !canTap }}
     >
-      <View style={styles.pileWrapper}>
+      <Animated.View
+        style={[
+          styles.pileWrapper,
+          { transform: [{ scale: pulseAnim }] },
+          glowStyle,
+        ]}
+      >
         {renderPileStack()}
-      </View>
+
+        {/* Tap indicator when active */}
+        {canTap && (
+          <View style={styles.tapIndicator}>
+            <Text style={styles.tapText}>TAP</Text>
+          </View>
+        )}
+      </Animated.View>
 
       {label && (
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, canTap && styles.labelActive]}>{label}</Text>
       )}
 
       {showCount && (
-        <View style={styles.countBadge}>
+        <View style={[styles.countBadge, canTap && styles.countBadgeActive]}>
           <Text style={styles.countText}>{cardCount}</Text>
         </View>
       )}
@@ -175,6 +264,28 @@ const createStyles = (colors: ThemeColors) =>
       ...Typography.caption2,
       color: '#FFFFFF',
       fontWeight: '700',
+    },
+    countBadgeActive: {
+      backgroundColor: colors.success,
+    },
+    labelActive: {
+      color: colors.accent,
+      fontWeight: '600',
+    },
+    tapIndicator: {
+      position: 'absolute',
+      bottom: -4,
+      alignSelf: 'center',
+      backgroundColor: colors.success,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    tapText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: 0.5,
     },
   });
 
