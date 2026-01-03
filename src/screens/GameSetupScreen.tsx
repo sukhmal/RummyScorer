@@ -18,7 +18,7 @@ import { useSettings, getCurrencySymbol } from '../context/SettingsContext';
 import { GameVariant, GameConfig, Player, PoolType } from '../types/game';
 import Icon from '../components/Icon';
 import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
-import { VariantSelector, PoolLimitSelector, NumberInputField } from '../components/shared';
+import { VariantSelector, PoolLimitSelector, NumberInputField, PrimaryButton } from '../components/shared';
 
 const PRESET_POOL_LIMITS = [101, 201, 250] as const;
 
@@ -465,23 +465,13 @@ const GameSetupScreen = ({ navigation }: any) => {
         )}
 
         {/* Start Button */}
-        <TouchableOpacity
-          style={[
-            styles.startButton,
-            validPlayerCount < 2 && styles.startButtonDisabled,
-          ]}
+        <PrimaryButton
+          label="Start Game"
+          icon="play.fill"
           onPress={startGame}
           disabled={validPlayerCount < 2}
-          accessibilityLabel="Start game"
-          accessibilityRole="button">
-          <Icon name="play.fill" size={IconSize.medium} color={validPlayerCount < 2 ? colors.tertiaryLabel : colors.label} weight="medium" />
-          <Text style={[
-            styles.startButtonText,
-            validPlayerCount < 2 && styles.startButtonTextDisabled,
-          ]}>
-            Start Game
-          </Text>
-        </TouchableOpacity>
+          style={styles.startButton}
+        />
 
         {validPlayerCount < 2 && (
           <Text style={styles.startHint}>Add at least 2 players to start</Text>
@@ -699,24 +689,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // Start Button
   startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.tint,
-    borderRadius: BorderRadius.large,
-    padding: Spacing.lg,
-    gap: Spacing.sm,
     marginTop: Spacing.md,
-  },
-  startButtonDisabled: {
-    backgroundColor: colors.cardBackground,
-  },
-  startButtonText: {
-    ...Typography.headline,
-    color: colors.label,
-  },
-  startButtonTextDisabled: {
-    color: colors.tertiaryLabel,
   },
   startHint: {
     ...Typography.caption1,

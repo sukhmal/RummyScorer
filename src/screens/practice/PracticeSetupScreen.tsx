@@ -24,7 +24,7 @@ import { BotDifficulty, PracticeVariant, PracticeGameConfig } from '../../engine
 import { DEFAULT_INVALID_DECLARATION } from '../../engine/scoring';
 import { ThemeColors, Typography, Spacing, BorderRadius, IconSize } from '../../theme';
 import Icon from '../../components/Icon';
-import { VariantSelector, NumberSelector } from '../../components/shared';
+import { VariantSelector, NumberSelector, PrimaryButton } from '../../components/shared';
 
 const DIFFICULTY_OPTIONS: { value: BotDifficulty; label: string; icon: string }[] = [
   { value: 'easy', label: 'Easy', icon: 'tortoise.fill' },
@@ -184,15 +184,13 @@ const PracticeSetupScreen = () => {
 
       {/* Start Button */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.startButton}
+        <PrimaryButton
+          label="Start Game"
+          icon="play.fill"
           onPress={handleStartGame}
-          accessibilityLabel="Start practice game"
-          accessibilityRole="button"
-        >
-          <Icon name="play.fill" size={IconSize.medium} color="#FFFFFF" weight="medium" />
-          <Text style={styles.startButtonText}>Start Game</Text>
-        </TouchableOpacity>
+          color="success"
+          size="compact"
+        />
       </View>
 
       {/* Difficulty Info Modal */}
@@ -386,20 +384,6 @@ const createStyles = (colors: ThemeColors) =>
       borderTopWidth: 1,
       borderTopColor: colors.separator,
       backgroundColor: colors.cardBackground,
-    },
-    startButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.success,
-      borderRadius: BorderRadius.medium,
-      paddingVertical: Spacing.md,
-      gap: Spacing.sm,
-    },
-    startButtonText: {
-      ...Typography.headline,
-      color: '#FFFFFF',
-      fontWeight: '700',
     },
     sectionTitleRow: {
       flexDirection: 'row',

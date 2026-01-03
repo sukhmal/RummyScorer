@@ -14,8 +14,8 @@ import { useGame } from '../context/GameContext';
 import { useTheme } from '../context/ThemeContext';
 import Icon from '../components/Icon';
 import EditRoundModal from '../components/EditRoundModal';
-import { WinnerBanner, GameInfoBadges, Leaderboard, LeaderboardPlayer } from '../components/shared';
-import { ThemeColors, Typography, Spacing, TapTargets, IconSize, BorderRadius } from '../theme';
+import { WinnerBanner, GameInfoBadges, Leaderboard, LeaderboardPlayer, PrimaryButton } from '../components/shared';
+import { ThemeColors, Typography, Spacing, IconSize, BorderRadius } from '../theme';
 import { Round } from '../types/game';
 
 const screenWidth = Dimensions.get('window').width;
@@ -285,23 +285,17 @@ const HistoryScreen = ({ navigation, route }: any) => {
         {/* Action Buttons */}
         <View style={styles.actionSection}>
           {viewingHistoricalGame ? (
-            <TouchableOpacity
-              style={styles.primaryButton}
+            <PrimaryButton
+              label="Back to Home"
+              icon="house.fill"
               onPress={() => navigation.navigate('Home')}
-              accessibilityLabel="Back to home"
-              accessibilityRole="button">
-              <Icon name="house.fill" size={IconSize.medium} color={colors.label} weight="medium" />
-              <Text style={styles.primaryButtonText}>Back to Home</Text>
-            </TouchableOpacity>
+            />
           ) : !winner ? (
-            <TouchableOpacity
-              style={styles.primaryButton}
+            <PrimaryButton
+              label="Continue Game"
+              icon="play.fill"
               onPress={() => navigation.goBack()}
-              accessibilityLabel="Continue game"
-              accessibilityRole="button">
-              <Icon name="play.fill" size={IconSize.medium} color={colors.label} weight="medium" />
-              <Text style={styles.primaryButtonText}>Continue Game</Text>
-            </TouchableOpacity>
+            />
           ) : null}
         </View>
       </ScrollView>
@@ -464,20 +458,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   actionSection: {
     gap: Spacing.sm,
     marginTop: Spacing.md,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.tint,
-    borderRadius: BorderRadius.large,
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-    minHeight: TapTargets.comfortable,
-  },
-  primaryButtonText: {
-    ...Typography.headline,
-    color: colors.label,
   },
 });
 
